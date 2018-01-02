@@ -1,0 +1,39 @@
+// instruments1.txt
+
+
+// заменит в программе все переменные ho на выражение na
+void ReplaceVars(var*proga,string ho,var na){
+	if(typeof(na)!="program")na=PROGRAM((string)na);
+	acces={};
+	while(1){
+		p=proga->getRowSize(acces);
+		if(proga->typeof(acces,"name")==ho)proga->typeof(acces,"name",na);
+		if(!p){
+			x=proga->getSub(acces);
+			if(ho==x)proga->setSub(acces,na);
+			}
+		acces.push(p);
+		n=acces.size()-1;
+		p=acces[n];
+		while(!p){
+			acces.pop_back();
+			--n;
+			if(n<0)break;
+			p=acces[n];
+			}
+		if(!p)break;
+		--p;
+		acces[n]=p;
+		}
+}
+
+
+// Удалит узел с командой x
+void DeleteUnit(f,x){
+	s=f->getIDs();
+	for(i=0;i<s.size();++i)if(f->getCommand(s[i])==x){
+		f->delete(s[i]);
+		return;
+		}
+}
+

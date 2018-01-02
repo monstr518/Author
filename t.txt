@@ -1,0 +1,88 @@
+CPP.CPP: In member function ‘void CallFunc::getstring(CVARIANT*&)’:
+CPP.CPP:408:2: warning: ‘char* gets(char*)’ is deprecated (declared at /usr/include/stdio.h:638) [-Wdeprecated-declarations]
+  gets(string);
+  ^
+CPP.CPP:408:13: warning: ‘char* gets(char*)’ is deprecated (declared at /usr/include/stdio.h:638) [-Wdeprecated-declarations]
+  gets(string);
+             ^
+CVARIANT.cpp:353:0: warning: "def_compare" redefined [enabled by default]
+  #define def_compare(ss,uu) if(isType(ss))return (*DATA.uu>*t.DATA.uu);
+ ^
+CVARIANT.cpp:319:0: note: this is the location of the previous definition
+  #define def_compare(ss,uu) if(isType(ss))return (*DATA.uu==*t.DATA.uu);
+ ^
+CVARIANT.cpp:372:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(isType(ss))return DATA.uu<t.DATA.uu;
+ ^
+CVARIANT.cpp:344:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss))return DATA.uu>t.DATA.uu;
+ ^
+CVARIANT.cpp:382:0: warning: "def_compare" redefined [enabled by default]
+  #define def_compare(ss,uu) if(isType(ss))return (*DATA.uu<*t.DATA.uu);
+ ^
+CVARIANT.cpp:353:0: note: this is the location of the previous definition
+  #define def_compare(ss,uu) if(isType(ss))return (*DATA.uu>*t.DATA.uu);
+ ^
+CVARIANT.cpp:406:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(isType(ss)) {if(plus)++DATA.uu; else --DATA.uu;}
+ ^
+CVARIANT.cpp:372:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss))return DATA.uu<t.DATA.uu;
+ ^
+CVARIANT.cpp:603:0: warning: "fop" redefined [enabled by default]
+   #define fop(t,uu) if(A->isType(#t)){ \
+ ^
+CVARIANT.cpp:406:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss)) {if(plus)++DATA.uu; else --DATA.uu;}
+ ^
+CVARIANT.cpp:625:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(A->isType(ss)){ \
+ ^
+CVARIANT.cpp:603:0: note: this is the location of the previous definition
+   #define fop(t,uu) if(A->isType(#t)){ \
+ ^
+CVARIANT.cpp:719:0: warning: "ff" redefined [enabled by default]
+   #define ff(ss,uu) if(isType(ss))DATA.uu=~DATA.uu;
+ ^
+CVARIANT.cpp:542:0: note: this is the location of the previous definition
+   #define ff(ss,uu) if(A->isType(ss)){ \
+ ^
+CVARIANT.cpp:729:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(isType(ss))DATA.uu=-DATA.uu;
+ ^
+CVARIANT.cpp:625:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(A->isType(ss)){ \
+ ^
+CVARIANT.cpp:744:0: warning: "is" redefined [enabled by default]
+  #define is(ss) !strcmp(s,(ss))
+ ^
+CVARIANT.cpp:526:0: note: this is the location of the previous definition
+  #define is(ss) !strcmp((ss),c)
+ ^
+CVARIANT.cpp:770:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(isType(ss))b=n=DATA.uu;
+ ^
+CVARIANT.cpp:729:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss))DATA.uu=-DATA.uu;
+ ^
+CVARIANT.cpp:810:0: warning: "fop" redefined [enabled by default]
+  #define fop(ss,uu) if(isType(ss)){DATA.uu=n;return;}
+ ^
+CVARIANT.cpp:770:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss))b=n=DATA.uu;
+ ^
+CVARIANT.cpp:980:0: warning: "fop" redefined [enabled by default]
+  #define fop(uu) if(!strcmp(s,#uu))return sizeof(uu);
+ ^
+CVARIANT.cpp:810:0: note: this is the location of the previous definition
+  #define fop(ss,uu) if(isType(ss)){DATA.uu=n;return;}
+ ^
+CVARIANT.cpp: In member function ‘void CVARIANT::toString(std::string&) const’:
+CVARIANT.cpp:439:46: warning: format ‘%d’ expects argument of type ‘int’, but argument 3 has type ‘long int’ [-Wformat=]
+  if(isType("long"))  sprintf(t,"%d",DATA.lVal);
+                                              ^
+CVARIANT.cpp:440:54: warning: format ‘%u’ expects argument of type ‘unsigned int’, but argument 3 has type ‘long unsigned int’ [-Wformat=]
+  if(isType("unsigned long"))sprintf(t,"%u",DATA.ulVal);
+                                                      ^
+/tmp/ccw5Gsco.o: In function `CallFunc::getstring(CVARIANT*&)':
+CPP.CPP:(.text+0x1ef6): warning: the `gets' function is dangerous and should not be used.

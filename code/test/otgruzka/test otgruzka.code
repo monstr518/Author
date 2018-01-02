@@ -1,0 +1,31 @@
+// test otgruzka.code
+
+
+
+
+SXEMA: void f(){
+start:	10:;{20}
+	20:--n;{80}
+	30:if(access.size());{20,40}
+	40:return 0;{10}
+	50:;{30}
+	60:if(access.size());{110,100}
+	70:access.push(n);{50}
+	80:if(n>=0);{70,60}
+	90:if(1);{20,30}
+	100:;{30}
+	110:n=access.pop();{90}
+}
+
+
+
+int main(){
+	var f=getFunction("f");
+	pos=f.Root();
+	pos=f.Next(pos);
+	trace(f.getComand(pos));
+	getstring();
+}
+
+
+// test otgruzka.code	:-|

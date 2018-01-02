@@ -1,0 +1,16 @@
+// a.code
+
+
+
+
+void main(){
+	X=((graph)0);
+	X.NET(0,0,"",0,0);
+	Y=((graph)0);
+	Y.NET(1,0,"",0,1);
+	trace(Y==X);
+	trace(1==#);
+}
+
+
+// a.code	:-|

@@ -1,0 +1,8 @@
+
+
+void main(){
+	trace("Welcome in lenguage Author!");
+	trace("Programmist: Вадим Довгополый.");
+	trace("(C) OFF");
+}
+

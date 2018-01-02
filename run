@@ -1,0 +1,1 @@
+(g++ author.cpp algorithm.cpp analysis.cpp assemble2.cpp CPP.CPP CPP2.CPP CVARIANT.cpp Digit.cpp getmapop.cpp global.cpp LoaderCode.cpp scaner.cpp service.cpp sxema.cpp UGraf.cpp zapusk.cpp zapusk2.cpp -o author.exe) 2> t.txt
