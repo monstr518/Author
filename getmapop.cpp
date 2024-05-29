@@ -131,7 +131,8 @@ string Sufix::getReverseFormul(string s){
 string CallFunc::getReverseFormul(string s){
 	if(s.empty()){
 		string r="#(";
-		for(int j=0;j<params.size();++j){
+		int j;
+		for(j=0;j<params.size();++j){
 			if(j)r+=",";
 			r+="#";
 			}
@@ -177,7 +178,8 @@ string Base3::getReverseFormul(string s){
 string AlgoSet::getReverseFormul(string s){
 	if(s.empty()){
 		string r="{";
-		for(int j=0;j<nabor.size();++j){
+		int j;
+		for(j=0;j<nabor.size();++j){
 			if(j)r+=",";
 			r+="#";
 			}

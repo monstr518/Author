@@ -117,6 +117,8 @@ public:
 	//void DEVIDE(Bloc*A,Bloc*B);
 
 	bool operator == (Sxema&);
+
+	void getGraph(UGraf*);
 };
 
 

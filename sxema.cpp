@@ -21,14 +21,15 @@ void Bloc::getAll(S_B&S){
 			if(!S.insert(X).second)return;
 			}else break;
 		}
-	int i=0;
-	for(;i<X->down.size();++i)X->down[i]->getAll(S);
+	int i;
+	for(i=0;i<X->down.size();++i)X->down[i]->getAll(S);
 	for(i=0;i<X->up.size();++i)X->up[i]->getAll(S);
 }
 
 
 void Bloc::disconnectUp(){
-	for(int i=0;i<up.size();++i){
+	int i;
+	for(i=0;i<up.size();++i){
 		Bloc*D=up[i];
 		D->down.erase(find(D->down.begin(),D->down.end(),this));
 		}
@@ -38,7 +39,8 @@ void Bloc::disconnectUp(){
 
 
 void Bloc::disconnectDown(){
-	for(int i=0;i<down.size();++i){
+	int i;
+	for(i=0;i<down.size();++i){
 		Bloc*D=down[i];
 		D->up.erase(find(D->up.begin(),D->up.end(),this));
 		}
@@ -58,8 +60,9 @@ void Bloc::deleted(){ // delete one Bloc
 	V_B xup=up,xdown=down;
 	//disconnectUp();
 	disconnectDown();
-	for(int i=0;i<xup.size();++i)if(xup[i]!=this)
-	for(int j=0;j<xdown.size();++j)if(xdown[j]!=this){
+	int i,j;
+	for(i=0;i<xup.size();++i)if(xup[i]!=this)
+	for(j=0;j<xdown.size();++j)if(xdown[j]!=this){
 		V_B::iterator it=find(xup[i]->down.begin(),xup[i]->down.end(),this);
 		if(it!=xup[i]->down.end())*it=xdown[j];	else 
 			xup[i]->down.push_back(xdown[j]);
@@ -77,7 +80,8 @@ bool Bloc::compareTree(const Bloc*t,const Bloc*HE) const {
 	if(HE==this)return 1;
 	if(!HE)HE=this;
 	bool ok,ok2;
-	for(int i=0;i<down.size();++i){
+	int i;
+	for(i=0;i<down.size();++i){
 		ok=down[i]->rang>rang;
 		ok2=t->down[i]->rang>t->rang;
 		if(ok!=ok2)return 0;
@@ -101,7 +105,8 @@ bool Bloc::Less(const Bloc*t,const Bloc*HE) const {
 	if(!HE)HE=this;
 	bool ok,ok2;
 	int a,b;
-	for(int i=0;i<down.size();++i){
+	int i;
+	for(i=0;i<down.size();++i){
 		ok=down[i]->rang>rang;
 		ok2=t->down[i]->rang>t->rang;
 		if(ok!=ok2)return ok > ok2;
@@ -129,8 +134,8 @@ string Bloc::toString(){
 void Bloc::terminateValey(const Bloc*Stop){
 	if(this==Stop)return;
 	bool upcount=0;
-	int i=0;
-	for(;i<up.size();++i)
+	int i;
+	for(i=0;i<up.size();++i)
 		if(rang>up[i]->rang)++upcount;
 	if(upcount)return;
 	disconnectUp();
@@ -264,7 +269,8 @@ void Sxema::ToSxema(Algorithm*Q){
 	V_B Cont,Break;
 	V_I CycleAndOpenPage;
 	OneToSxema(CycleAndOpenPage,Goto,mib,N,Q,&Cont,&Break);
-	for(int i=0;i<Goto.size();++i){//Big problems
+	int i;
+	for(i=0;i<Goto.size();++i){//Big problems
 		SpecSumbol2*S2=dynamic_cast<SpecSumbol2*>(Goto[i]->A);
 		Base*B=dynamic_cast<Base*>(S2->X);
 		if(B)if(B->type==3){//is digit
@@ -282,8 +288,9 @@ void Sxema::ToSxema(Algorithm*Q){
 		AlgoSet*as=dynamic_cast<AlgoSet*>(S2->X);
 		if(as){
 			V_I Adr,Ra;
-			int n,j=0;
-			for(;j<as->nabor.size();++j){
+			int n;
+			int j;
+			for(j=0;j<as->nabor.size();++j){
 				B=dynamic_cast<Base*>(as->nabor[j]);
 				if(!B)continue;
 				if(B->type!=3)continue;
@@ -314,8 +321,49 @@ void Sxema::ToSxema(Algorithm*Q){
 
 
 
+void Sxema::getGraph(UGraf*UG){
+	controlTable();
+	NetLine*net;
+	MarkerLine*marker;
+	marker = new MarkerLine(freeN,0,"",0,"End");
+	UG->add(marker);
+	int size,n;
+	M_IB::iterator it = table.begin();
+	for(;it!=table.end();++it){
+		Bloc*B=it->second,*B2;
+		size = B->down.size();
+		if(size==1){
+			B2=B->down[0];
+			n=B2->accessNumber;
+			if(n==HeadEnd->accessNumber)n=freeN;
+			net = new NetLine(B->accessNumber,0,"",1,n);
+			UG->add(net);
+			}
+		if(size==2){
+			B2=B->down[0];
+			n=B2->accessNumber;
+			if(n==HeadEnd->accessNumber)n=freeN;
+			net = new NetLine(B->accessNumber,0,"+",1,n);
+			UG->add(net);
+			B2=B->down[1];
+			n=B2->accessNumber;
+			if(n==HeadEnd->accessNumber)n=freeN;
+			net = new NetLine(B->accessNumber,0,"-",1,n);
+			UG->add(net);
+			}
+		if(!B->A)continue;
+		marker = new MarkerLine(B->accessNumber,0,"",0,B->A->toString().c_str());
+		UG->add(marker);
+		}
+	marker = new MarkerLine(HeadEnd->accessNumber,0,"",0,"Begin");
+	UG->add(marker);
+}
+
+
+
 void Sxema::AddUp(Bloc*P,Bloc*N){
-	for(int i=0;i<P->up.size();++i){
+	int i;
+	for(i=0;i<P->up.size();++i){
 		Bloc*T=P->up[i];
 		*find(T->down.begin(),T->down.end(),P)=N;
 		N->up.push_back(T);
@@ -328,7 +376,8 @@ void Sxema::AddUp(Bloc*P,Bloc*N){
 
 
 void Sxema::AddDown(Bloc*P,Bloc*N){
-	for(int i=0;i<P->down.size();++i){
+	int i;
+	for(i=0;i<P->down.size();++i){
 		Bloc*T=P->down[i];
 		T->up.erase(find(T->up.begin(),T->up.end(),P));
 		T->up.push_back(N);
@@ -366,7 +415,8 @@ void Sxema::OneToSxema(V_I&CycleAndOpenPage,V_B&Goto,M_IB&mib,Bloc*X,Algorithm*Q
 		if(level<1)level=1;
 		if(level>Cont->size())level=Cont->size();
 		int NneedClose=0,Ncycle=0;
-		for(int i=CycleAndOpenPage.size()-1;i>=0;--i)if(CycleAndOpenPage[i])++NneedClose;else{
+		int i;
+		for(i=CycleAndOpenPage.size()-1;i>=0;--i)if(CycleAndOpenPage[i])++NneedClose;else{
 			++Ncycle;
 			if(Ncycle>=level)break;
 			}
@@ -418,7 +468,8 @@ void Sxema::OneToSxema(V_I&CycleAndOpenPage,V_B&Goto,M_IB&mib,Bloc*X,Algorithm*Q
 		Bloc*P=X,*H=X;
 		bool NeedPage=0;
 		L_AL::iterator it=S->nabor.begin();
-		for(int f=1;it!=S->nabor.end();++it,f=0){
+		int f;
+		for(f=1;it!=S->nabor.end();++it,f=0){
 			if(!*it)continue;
 			CreateVar*cv=dynamic_cast<CreateVar*>(*it);
 			if(cv)NeedPage=1;
@@ -642,7 +693,8 @@ void Sxema::diveLineEnd(Bloc*A,Bloc*B){ // for normalize algorithm
 		}
 	if(Penultimates.size()==1 && !needOne)return;
 	Bloc*R=new(Bloc);
-	for(int i=0;i<Penultimates.size();++i){
+	int i;
+	for(i=0;i<Penultimates.size();++i){
 		B->up.erase(find(B->up.begin(),B->up.end(),Penultimates[i]));
 		(*PenultimateIts[i])=R;
 		R->up.push_back(Penultimates[i]);
@@ -672,7 +724,8 @@ Bloc* Sxema::findPenultimate(Bloc*A,Bloc*B,V_B*U){ // for one Penultimate A-->(R
 		if(iif){
 			A=R;
 			R=new(Bloc);
-			for(int i=0;i<A->down.size();++i)if(A->down[i]==B){
+			int i;
+			for(i=0;i<A->down.size();++i)if(A->down[i]==B){
 				A->down[i]=R;
 				R->up.push_back(A);
 				B->up.erase(find(B->up.begin(),B->up.end(),A));
@@ -682,8 +735,8 @@ Bloc* Sxema::findPenultimate(Bloc*A,Bloc*B,V_B*U){ // for one Penultimate A-->(R
 			}
 		return R;
 		}
-	int i=0;
-	for(;i<U->size();++i)if((*U)[i]==A)return NULL;
+	int i;
+	for(i=0;i<U->size();++i)if((*U)[i]==A)return NULL;
 	U->push_back(A);
 	for(i=0;i<A->down.size();++i){
 		if(A->down[i]==B)return A;
@@ -712,7 +765,8 @@ string Sxema::toString(bool rangs){
 		if(R[R.size()-1]!=';')R+=";";
 		R+="{";
 		V_B::iterator jt=(*it)->down.begin();
-		for(int f=0;jt!=(*it)->down.end();++jt,++f){
+		int f;
+		for(f=0;jt!=(*it)->down.end();++jt,++f){
 			if(f)R+=",";
 			R+=SCANER::toString((*jt)->accessNumber*10);
 			}
@@ -746,8 +800,8 @@ void Sxema::OptimizeFree(){
 				X->A=D->A;
 				D->A=NULL;
 				V_B::iterator jt;
-				int i=0;
-				for(;i<D->down.size();++i){
+				int i;
+				for(i=0;i<D->down.size();++i){
 					Bloc*D2=D->down[i];
 					jt=find(D2->up.begin(),D2->up.end(),D);
 					*jt=X;
@@ -772,11 +826,12 @@ void Sxema::OptimizeFree(){
 			Bloc*X=*it;
 			if(X->down.size()<2)continue;
 			if(dynamic_cast<IF*>(X->A))continue;
-			for(int i=0;i<X->down.size();++i)
-				for(int j=i+1;j<X->down.size();++j)if(X->down[i]==X->down[j]){
+			int i,j;
+			for(i=0;i<X->down.size();++i)
+				for(j=i+1;j<X->down.size();++j)if(X->down[i]==X->down[j]){
 					Bloc*D=X->down[j];
 					D->up.erase(find(D->up.begin(),D->up.end(),X));
-					X->down.erase(X->down.begin()+j);
+					X->down.erase(&X->down[j]);
 					--j;
 					ok=1;
 					}
@@ -793,8 +848,8 @@ void Sxema::controlTable(){
 	S_B S;
 	HeadEnd->getAll(S);
 	S_B::iterator it=S.begin();
-	int i=1;
-	for(;it!=S.end();++it,++i){
+	int i;
+	for(i=1;it!=S.end();++it,++i){
 		table[i]=*it;
 		(*it)->accessNumber=i;
 		}
@@ -847,8 +902,8 @@ bool Sxema::controlCorrectSxema(){
 	for(;it!=S.end();++it){
 		Bloc*B=*it;
 		if(B->down.empty())return 0;
-		int i=0;
-		for(;i<B->down.size();++i){
+		int i;
+		for(i=0;i<B->down.size();++i){
 			Bloc*U=B->down[i];
 			if(find(U->up.begin(),U->up.end(),B)==U->up.end())return 0;
 			}
@@ -864,6 +919,7 @@ bool Sxema::controlCorrectSxema(){
 
 Algorithm* Sxema::Coder(){
 	//normalizace
+	if(!HeadEnd)return NULL;
 	bool paralel=0;
 	for(;;){
 		V_B::iterator it=find(HeadEnd->down.begin(),HeadEnd->down.end(),HeadEnd);
@@ -888,11 +944,11 @@ Algorithm* Sxema::Coder(){
 		AddUp(HeadEnd,N);
 		rangOK=0;
 		}
-
+	//разделит условные блоки с более двух переходов, на блоки по два перехода
 	ower_ifs();
-
+	//заменит неоднозначные (неусловные) переходы на условные #
 	DEFINE_ONE();
-
+	// удалит все узлы вне прохода схемы.
 	Antitupik();
 	//controlRang();
 	//FIND_CUCLE();
@@ -963,6 +1019,7 @@ void Sxema::ower_ifs(){
 
 
 // find and devide to undefined ifs (noif) exit>1
+// заменит неоднозначные (неусловные) переходы на условные #
 void Sxema::DEFINE_ONE(){
 	S_B S;
 	HeadEnd->getAll(S);
@@ -988,7 +1045,8 @@ void Sxema::DEFINE_ONE(){
 			S_B SB;
 			SB.insert(N->down.begin(),N->down.end());
 			if(n>SB.size()){
-				for(int i=0;i<N->down.size();++i){
+				int i;
+				for(i=0;i<N->down.size();++i){
 					Bloc*E=N->down[i];
 					E->up.erase(find(E->up.begin(),E->up.end(),N));
 					}
@@ -1006,7 +1064,8 @@ void Sxema::DEFINE_ONE(){
 				Bloc*AA=NULL,*BB=NULL,*W=NULL;
 				if(t)AA=new(Bloc);
 				if(t<n-2)BB=new(Bloc);
-				for(int i=0;i<n;++i){
+				int i;
+				for(i=0;i<n;++i){
 					B=N->down[i];
 					bool ok=0;
 					if(i<=t){
@@ -1045,7 +1104,7 @@ void Sxema::DEFINE_ONE(){
 }
 
 
-
+// удалит все узлы вне прохода схемы.
 void Sxema::Antitupik(){
 	S_B S;
 	HeadEnd->getAll(S);
@@ -1057,7 +1116,8 @@ void Sxema::Antitupik(){
 		B->down.push_back(HeadEnd);
 		HeadEnd->up.push_back(B);
 		}
-	for(int i=0;i<2;++i){
+	int i;
+	for(i=0;i<2;++i){
 		S_B U;
 		V_B X;
 		X.push_back(HeadEnd);
@@ -1081,7 +1141,7 @@ void Sxema::Antitupik(){
 }
 
 
-
+// S1 - false, S2 - true
 void Sxema::findEndIF(Bloc*A,V_B*S1,V_B*S2,V_B*S3){
 	Bloc*L,*R;
 	L=A->down[0];
@@ -1165,13 +1225,14 @@ void Sxema::findEndIF(Bloc*A,V_B*S1,V_B*S2,V_B*S3){
 //--------------------------------------------------------------------------------------------------
 Sxema::UnitCucle::UnitCucle(){isFor=isWhile=0;}
 Sxema::UnitCucle::~UnitCucle(){
-	for(int i=0;i<next.size();++i)delete next[i];
+	int i;
+	for(i=0;i<next.size();++i)delete next[i];
 }
 
 
 int Sxema::UnitCucle::Scaner(Sxema*S,V_pUC&WAY,int&vxodov){
-	int i=0;
-	for(;i<WAY.size();++i)if(*WAY[i]==*this)return 0;
+	int i;
+	for(i=0;i<WAY.size();++i)if(*WAY[i]==*this)return 0;
 	WAY.push_back(this);
 	Bloc*P=Begin,*B;
 	int x,numberUP,zanano;
@@ -1186,16 +1247,26 @@ int Sxema::UnitCucle::Scaner(Sxema*S,V_pUC&WAY,int&vxodov){
 			}
 		numberUP=-1;
 		zanano=0;
-		for(i=0;i<P->up.size();++i)if(P->up[i]->rang>P->rang){
-			bool ok=1;
-			for(int j=0;j<WAY.size();++j)if(WAY[j]->End==P->up[i]){
-				ok=0;
-				++zanano;
+		int countUp=0;
+		int i;
+		for(i=0;i<P->up.size();++i){
+			if(P->up[i]->rang>P->rang){
+				bool ok=1;
+				int j;
+				for(j=0;j<WAY.size();++j)if(WAY[j]->End==P->up[i]){
+					ok=0;
+					++zanano;
+					}
+				if(ok){
+					if(numberUP<0)numberUP=i;
+					if(P->up[i]->rang>P->up[numberUP]->rang)numberUP=i;
+					}
 				}
-			if(ok){
-				if(numberUP<0)numberUP=i;
-				if(P->up[i]->rang>P->up[numberUP]->rang)numberUP=i;
-				}
+			if(P->up[i]->rang<P->rang)++countUp;
+			}
+		if(vxodov<countUp){
+			WAY.pop_back();
+			return 0;
 			}
 		if(P->up.size()<=zanano+vxodov)
 		if(P->down.size()>1){
@@ -1210,7 +1281,7 @@ int Sxema::UnitCucle::Scaner(Sxema*S,V_pUC&WAY,int&vxodov){
 				bool ok=1;
 				if(t==2 || t==3)ok=(B->rang<=End->rang);
 				if(t==3)if(Begin->rang>End->rang)ok=1;
-				if(B->rang<P->rang)ok=0;
+				//if(B->rang<P->rang)ok=0;
 				if(ok)if(P!=B){
 					UnitCucle*UC=new UnitCucle();
 					UC->End=UC->Exit=B;
@@ -1321,8 +1392,8 @@ int Sxema::UnitCucle::ControlBreak(Sxema*S,V_pUC&WAY,int n,Bloc*P){
 		//analize break & continue:
 		int ok=0;//break
 		int ok2=0;//continue
-		int i=WAY.size()-1;
-		for(;i>=0;--i){
+		int i;
+		for(i=WAY.size()-1;i>=0;--i){
 			int t=WAY[i]->t;
 			if(t==1 || t==2){
 				if(WAY[i]->End==*PP){ok2=t;break;}
@@ -1341,11 +1412,14 @@ int Sxema::UnitCucle::ControlBreak(Sxema*S,V_pUC&WAY,int n,Bloc*P){
 				}
 			}
 		if(ok || ok2){
-			if(ok2)for(int i=1;i<WAY.size();++i){
-				int t=WAY[i]->t;
-				if(t==1)if(WAY[i]->End==*PP){
-					toFor=WAY[i];
-					break;
+			if(ok2){
+				int i;
+				for(i=1;i<WAY.size();++i){
+					int t=WAY[i]->t;
+					if(t==1)if(WAY[i]->End==*PP){
+						toFor=WAY[i];
+						break;
+						}
 					}
 				}
 			if(Stoper){
@@ -1359,7 +1433,8 @@ int Sxema::UnitCucle::ControlBreak(Sxema*S,V_pUC&WAY,int n,Bloc*P){
 			if(ok2==1){
 				S->controlRang();
 				int nn=0;
-				for(int a=0;a<(*PP)->up.size();++a){
+				int a;
+				for(a=0;a<(*PP)->up.size();++a){
 					if((*PP)->up[a]->rang > (*PP)->rang)++nn;
 					}
 				if(toFor)if(toFor->isFor)nn=0;
@@ -1368,7 +1443,7 @@ int Sxema::UnitCucle::ControlBreak(Sxema*S,V_pUC&WAY,int n,Bloc*P){
 			//if(*PP==S->HeadEnd)return 0;
 			if(ok2==2)if(P->down[1-n]->rang >= WAY[i]->End->rang)return 0;
 			SpecSumbol*SS=dynamic_cast<SpecSumbol*>(Prev->A);
-			if(SS)if(SS->n==3 || SS->n==4)return 0;
+			if(SS)if(SS->n==3 || SS->n==4)return 0;//Противо зацикалка
 			ok=0;
 			for(;i<WAY.size();++i){
 				int t=WAY[i]->t;
@@ -1376,6 +1451,7 @@ int Sxema::UnitCucle::ControlBreak(Sxema*S,V_pUC&WAY,int n,Bloc*P){
 				}
 			int pset=ok2?3:4; // 3-continue 4-break
 			if(ok2)if(toFor)if(!toFor->isFor)toFor->isWhile=1;
+			if((*PP)->up.size()==1)return 0;
 			if(ok>1){
 				SpecSumbol2*SS2=new SpecSumbol2();
 				SS2->n=pset;
@@ -1446,8 +1522,8 @@ Sequence* Sxema::UnitCucle::Build(){
 	Sequence*S=new Sequence();
 	Bloc*P=Begin,*B;
 	while(P!=End){
-		int i=0,u=0;
-		for(;i<next.size();++i)if(next[i]->Begin==P && next[i]->t==2){u=1;break;}
+		int i,u;
+		for(i=0,u=0;i<next.size();++i)if(next[i]->Begin==P && next[i]->t==2){u=1;break;}
 		if(u){//do
 			Sequence*SA;
 			UnitCucle*UC=next[i];

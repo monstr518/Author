@@ -5,6 +5,11 @@
 
 void Algorithm::initUP(Algorithm*P){up=P;}
 //--------------------------------------------------------------------------------------------------
+void BaseFunction::initUP(Algorithm*P){
+	up=P;
+	if(Body)Body->initUP(this);
+}
+//--------------------------------------------------------------------------------------------------
 void Base2::initUP(Algorithm*P){
 	up=P;
 	A->initUP(this);
@@ -42,7 +47,8 @@ void Interval::initUP(Algorithm*P){
 //--------------------------------------------------------------------------------------------------
 void AlgoSet::initUP(Algorithm*P){
 	up=P;
-	for(int i=0;i<nabor.size();++i)
+	int i;
+	for(i=0;i<nabor.size();++i)
 		nabor[i]->initUP(this);
 }
 //--------------------------------------------------------------------------------------------------
@@ -62,7 +68,8 @@ void Sequence::initUP(Algorithm*P){
 void CreateVar::initUP(Algorithm*P){
 	up=P;
 	if(Init)Init->initUP(this);
-	for(int i=0;i<params.size();++i)
+	int i;
+	for(i=0;i<params.size();++i)
 		if(params[i])params[i]->initUP(this);
 }
 //--------------------------------------------------------------------------------------------------
@@ -94,7 +101,8 @@ void FOR::initUP(Algorithm*a){
 void CallFunc::initUP(Algorithm*P){
 	up=P;
 	X->initUP(this);
-	for(int i=0;i<params.size();++i)
+	int i;
+	for(i=0;i<params.size();++i)
 		params[i]->initUP(this);
 }
 
@@ -102,18 +110,22 @@ void CallFunc::initUP(Algorithm*P){
 
 //--------------------------------------------------------------------------------------------------
 Function::Function(){
+	argumentsON=0;
 	isOperator=isStatic=isVirtual=0;
 	Body=NULL;
 	file=NULL;
 	Space=NULL;
 	sxema=NULL;
+	DataTable=NULL;
 }
 
 
 Function::~Function(){
 	if(Body)delete Body;
 	if(sxema)delete sxema;
-	for(int i=0;i<defaults.size();++i)
+	if(DataTable)delete DataTable;
+	int i;
+	for(i=0;i<defaults.size();++i)
 		if(defaults[i])delete defaults[i];
 }
 
@@ -145,15 +157,23 @@ string Function::getHead(bool full){
 	s+=name;
 	if(isOperator)s+=" ";
 	s+="(";
-	for(int i=0;i<tips.size();++i){
+	int i;
+	for(i=0;i<tips.size();++i){
 		if(i)s+=",";
-		tmp=tips[i].toString();;
+		/*
+		tmp=tips[i].toString();
 		s+=tmp;
 		if(!tmp.empty())s+=" ";
+		*/
 		if(i>=names.size())continue;
 		s+=names[i];
 		if(!full)
+		if(defaults.size()>i)
 		if(defaults[i])s+="="+defaults[i]->toString();
+		}
+	if(argumentsON){
+		if(i)s+=",";
+		s+="...";
 		}
 	s+=")";
 	return s;
@@ -240,18 +260,18 @@ Function* Function::copy() const{
 	R->isStatic=isStatic;
 	R->isVirtual=isVirtual;
 	R->ret=ret;
+	R->argumentsON=argumentsON;
 	//R->file=file;
 	R->tips=tips;
 	R->name=name;
 	R->names=names;
 	R->Space=Space;
-	cout<<"Function::copy"<<endl;
 	if(Body){
 		R->Body=Body->copy();
 		R->Body->initUP(NULL);
 		}
 	if(sxema)R->sxema=sxema->copy();
-	cout<<"Function::copy end."<<endl;
+	//if(DataTable)R->DataTable=DataTable->copy();
 	return R;
 }
 
@@ -260,6 +280,7 @@ bool Function::operator == (Function&t){
 	if(t.isOperator!=isOperator)return 0;
 	if(t.isStatic!=isStatic)return 0;
 	if(t.isVirtual!=isVirtual)return 0;
+	if(t.argumentsON!=argumentsON)return 0;
 	t.controlSxema();
 	t.sxema->controlTable();
 	controlSxema();
@@ -283,15 +304,289 @@ bool Function:: operator < (Function&t){
 }
 
 
+
+
+bool Function::BuildMe(const UGraf*UG,MAIN*M){
+	if(sxema)delete sxema;
+	if(Body)delete Body;
+	Body = NULL;
+	sxema = new Sxema();
+	int i,a,b,Vector,BeginNumber,EndNumber;
+
+	V_BL vbl;
+	string key = "Begin";
+	bool ok=0;
+	UG->findMarker(vbl,-1,2,NULL,2,&key);
+	for(i=0;i<vbl.size();++i){
+		BasisLine*X=vbl[i];
+		V_BL vbl2;
+		UG->findNet(vbl2,X->a,1,NULL,2,-1);
+		if(vbl2.empty()){
+			ok=1;
+			BeginNumber=X->a;
+			break;
+			}
+		}
+	if(!ok)return 0;
+
+	vbl.clear();
+	key = "End";
+	ok=0;
+	UG->findMarker(vbl,-1,2,NULL,2,&key);
+	for(i=0;i<vbl.size();++i){
+		BasisLine*X=vbl[i];
+		V_BL vbl2;
+		UG->findNet(vbl2,X->a,2,NULL,1,-1);
+		if(vbl2.empty()){
+			ok=1;
+			EndNumber=X->a;
+			break;
+			}
+		}
+	if(!ok)return 0;
+
+	M_IB table;
+	S_I SI;
+	UG->getUnits(SI);
+	S_I::iterator it = SI.begin();
+	for(;it!=SI.end();++it)table[*it] = new Bloc();
+	for(Vector=0;Vector<=1;++Vector)
+	for(i=0;i<UG->lincs.size();++i){
+		NetLine*NL=UG->lincs[i];
+		bool ok = (NL->name!="-");
+		if(Vector)ok=!ok;
+		if(!ok)continue;
+		if(!(NL->c==1 || NL->c==2))continue;
+		a=NL->a;
+		b=NL->b;
+		if(NL->c==1){
+			b=NL->a;
+			a=NL->b;
+			}
+		if(b==EndNumber)b=BeginNumber;
+		Bloc*A = table[a],*B = table[b];
+		A->down.push_back(B);
+		B->up.push_back(A);
+		}
+	for(i=0;i<UG->markers.size();++i){
+		MarkerLine*ML = UG->markers[i];
+		if(ML->name!="" || ML->c!=0)continue;
+		string command = ML->marker,error;
+		command = "{" + command +";}";
+		int er=0;
+		Algorithm*A=NULL;
+		Sequence*S=NULL;
+			{
+			Assemble A(error,M,"");
+			char*c=const_cast<char*>(command.c_str());
+			S=A.getNabor(c,er);
+			}
+		if(er){
+			if(S)delete S;
+			continue;
+			}
+		if(S->nabor.size()==1){
+			A=(*S->nabor.begin())->copy();
+			A->initUP(NULL);
+			}
+		delete S;
+		Bloc*X = table[ML->a];
+		X->A = A;
+		}
+
+	sxema->HeadEnd = table[BeginNumber];
+	if(sxema->HeadEnd->A)delete sxema->HeadEnd->A;
+	sxema->HeadEnd->A = NULL;
+	if(!sxema->controlCorrectSxema()){
+		sxema->HeadEnd = NULL;
+		M_IB::iterator it = table.begin();
+		for(;it!=table.end();++it)delete it->second;
+		return 0;
+		}
+	S_B S;
+	sxema->HeadEnd->getAll(S);
+	M_IB::iterator it2 = table.begin();
+	for(;it2!=table.end();++it2){
+		ok = find(S.begin(),S.end(),it2->second)==S.end();
+		if(ok)delete it2->second;
+		}
+	return 1;
+}
+
+
+
+
+//--------------------------------------------------------------------------------------------------
+bool Function::isAccesibleSub(int pos1,int pos2,S_I&SI){
+	controlSxema();
+	sxema->controlTable();
+	sxema->controlRang();
+	Bloc*A,*B;
+	A=sxema->table[pos1];
+	B=sxema->table[pos2];
+	if(!A || !B)return 0;
+	if(A==sxema->HeadEnd || B==sxema->HeadEnd)return 0;
+	if(A->rang>B->rang){
+		B=sxema->table[pos1];
+		A=sxema->table[pos2];
+		}
+	if(B->down.size()!=1)return 0;
+	Bloc*P,*X;
+	V_B VB;
+	VB.push_back(A);
+	bool firstUnit = 1;
+	while(!VB.empty()){
+		P=*(VB.end()-1);
+		VB.pop_back();
+		if(!SI.insert(P->accessNumber).second)continue;
+		if(P==sxema->HeadEnd)return 0;
+		int i,si;
+		if(!firstUnit){
+			si=P->up.size();
+			for(i=0;i<si;++i){
+				X=P->up[i];
+				if(X->rang<A->rang)return 0;
+				VB.push_back(X);
+				}
+			}
+		firstUnit = 0;
+		if(P==B)continue;
+		si=P->down.size();
+		for(i=0;i<si;++i){
+			X=P->down[i];
+			if(X->rang<=A->rang)return 0;
+			if(X->rang>B->rang)return 0;
+			VB.push_back(X);
+			}
+		}
+	return 1;
+}
+
+
+
+Sxema* Function::getSubSxema(const S_I&SI){
+	controlSxema();
+	sxema->controlTable();
+	sxema->controlRang();
+	Sxema*sxema2 = new Sxema();
+	sxema2->HeadEnd = new Bloc();
+	V_B VB;
+	Bloc*WA=NULL,*WB=NULL;
+	S_I::const_iterator tt,jt,it=SI.begin();
+	for(;it!=SI.end();++it){
+		Bloc*X=sxema->table[*it];
+		if(!WA)WA=WB=X;
+		if(WA->rang>X->rang)WA=X;
+		if(WB->rang<X->rang)WB=X;
+		Bloc*B=new Bloc();
+		if(X->A){
+			B->A = X->A->copy();
+			B->A->initUP(NULL);
+			}
+		VB.push_back(B);
+		}
+	int i,si,pos,posi;
+	it=SI.begin();
+	for(posi=0;it!=SI.end();++it,++posi){
+		Bloc*A=VB[posi];
+		Bloc*X=sxema->table[*it];
+		if(X==WA)WA=A;
+		if(X==WB)WB=A;
+		si=X->down.size();
+		for(i=0;i<si;++i){
+			Bloc*B=X->down[i];
+			jt=SI.find(B->accessNumber);
+			if(jt==SI.end())continue;
+			tt=SI.begin();
+			for(pos=0;tt!=jt;++tt,++pos);
+			B=VB[pos];
+			A->down.push_back(B);
+			B->up.push_back(A);
+			}
+		}
+	sxema2->HeadEnd->down.push_back(WA);
+	WA->up.push_back(sxema2->HeadEnd);
+	sxema2->HeadEnd->up.push_back(WB);
+	WB->down.push_back(sxema2->HeadEnd);
+	return sxema2;
+}
+
+
+
+
+void Function::deleteSubTree(int pos1,int pos2,const S_I&SI){
+	controlSxema();
+	sxema->controlTable();
+	sxema->controlRang();
+	Bloc*A,*B,*C;
+	A=sxema->table[pos1];
+	B=sxema->table[pos2];
+	if(A->rang>B->rang){
+		B=sxema->table[pos1];
+		A=sxema->table[pos2];
+		}
+	C=B->down[0];
+	C->up.erase(find(C->up.begin(),C->up.end(),B));
+	if(A->A){
+		delete A->A;
+		A->A=NULL;
+		}
+	A->down.clear();
+	A->down.push_back(C);
+	C->up.push_back(A);
+	sxema->table.clear();
+	if(file)file->NeedSave=1;
+	//delete musor:
+	S_I::const_iterator it=SI.begin();
+	for(;it!=SI.end();++it){
+		C=sxema->table[*it];
+		if(A!=C)delete C;
+		}
+}
+
+
+
+void Function::insertInUnit(int pos,Function*FIZ){
+	controlSxema();
+	sxema->controlTable();
+	Bloc*X=sxema->table[pos];
+	if(!X)return;
+	if(X->down.size()!=1)return;
+	FIZ->controlSxema();
+	Sxema*SX=FIZ->sxema->copy();
+	Bloc*B=SX->HeadEnd->down[0];
+	if(B==SX->HeadEnd)return;
+	if(X->A){
+		delete X->A;
+		X->A=NULL;
+		}
+	Bloc*X2=X->down[0];
+	X->down.clear();
+	X2->up.erase(find(X2->up.begin(),X2->up.end(),X));
+	B->up.clear();
+	SX->HeadEnd->down.clear();
+	X->down.push_back(B);
+	B->up.push_back(X);
+	SX->HeadEnd->down.push_back(X2);
+	X2->up.push_back(SX->HeadEnd);
+	SX->HeadEnd=NULL;
+	delete SX;
+	if(file)file->NeedSave=1;
+	sxema->table.clear();
+	sxema->rangOK=0;
+}
+
+
+
 //--------------------------------------------------------------------------------------------------
 //::A::B
-string Assemble::getRowNAMES(const char*&s){
+string Assemble::getRowNAMES(char*&s){
 	string R;
 	string one;
 	int dt=2,v;
 	do{
 		SCANER::noProbel(s);
-		const char*s2=s;
+		char*s2=s;
 		v=0;
 		if(SCANER::scanSlovo("::",s))v=1; else{
 			int d=0;
@@ -318,22 +613,30 @@ string Assemble::getRowNAMES(const char*&s){
 
 
 
-int Assemble::getSpisokArgs(V_TIP&tips,V_S&names,V_AL&defaults,const char*&s){
+int Assemble::getSpisokArgs(V_TIP&tips,V_S&names,V_AL&defaults,char*&s){
+	bool argumentsON=0;
 	SCANER::noProbel(s);
-	const char*ss=s;
+	char*ss=s;
 	while(*s!=')'){
+		if(SCANER::scanSlovo("...",s)){
+			argumentsON=1;
+			SCANER::noProbel(s);
+			if(*s==',')++s;else if(*s!=')'){s=ss;return 0;}
+			SCANER::noProbel(s);
+			continue;
+			}
 		Type t;
 		string name;
 		Algorithm*D=NULL;
 		if(SCANER::scanSlovo("const",s)){
-			const char*s3=s;
+			char*s3=s;
 			SCANER::noProbel(s);
 			if(s>s3)t.isConst=1; else s=ss;
 			}
 		bool nfirst=0;
 		string one;
 		do{
-			const char*s3=s;
+			char*s3=s;
 			one=SCANER::readName(s);
 			SCANER::noProbel(s);
 			if(*s==',' || *s==':' || *s==')' || *s=='='){s=s3;break;}
@@ -368,9 +671,10 @@ int Assemble::getSpisokArgs(V_TIP&tips,V_S&names,V_AL&defaults,const char*&s){
 		names.push_back(name);
 		defaults.push_back(D);
 		if(*s==',')++s;else if(*s!=')'){s=ss;return 0;}
+		SCANER::noProbel(s);
 		}
 	++s;
-	return 1;// ok
+	return argumentsON?10:1;// ok
 }
 
 
@@ -379,7 +683,7 @@ Assemble::SX::SX(){B=NULL;}
 Assemble::SX::~SX(){if(B)delete B;};
 
 
-Sxema* Assemble::getSxema(const char*&s){
+Sxema* Assemble::getSxema(char*&s){
 	SCANER::noProbel(s);
 	if(*s!='{')return NULL;
 	++s;
@@ -431,7 +735,8 @@ Sxema* Assemble::getSxema(const char*&s){
 	M_ISX::iterator it=table.begin();
 	for(;it!=table.end();++it){
 		SX*sx=&it->second;
-		for(int i=0;i<sx->next.size();++i){
+		int i;
+		for(i=0;i<sx->next.size();++i){
 			sx->B->down.push_back(table[sx->next[i]].B);
 			E=&table[sx->next[i]];
 			E->B->up.push_back(sx->B);
@@ -439,7 +744,7 @@ Sxema* Assemble::getSxema(const char*&s){
 		}
 	Sxema*SXE=new(Sxema);
 	SXE->HeadEnd=table[nstart].B;
-
+	//нужно отключить указатели таблици на блоки схемиы.
 	it=table.begin();
 	for(;it!=table.end();++it){
 		SX*sx=&it->second;
@@ -450,9 +755,9 @@ Sxema* Assemble::getSxema(const char*&s){
 
 
 
-Function* Assemble::getFunction(const char*&s,int&er,File*file){
+Function* Assemble::getFunction(char*&s,int&er,File*file){
 	SCANER::noProbel(s);
-	const char*s2=s,*ss=s,*s3;
+	char*s2=s,*ss=s,*s3;
 	while(*s2&&*s2!='(')++s2;
 	if(*s2!='(')return NULL;
 	bool virt=0,stat=0,isop=0,isSxema=0;
@@ -482,8 +787,9 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 	// unsigned long int
 	string one;
 	bool nfirst=0;
+	bool argumentsON=0;
 	do{
-		const char*s3=s;
+		char*s3=s;
 		one=SCANER::readName(s);
 		if(one.empty())
 			if(t.name.empty())break; else {s=ss;return NULL;}
@@ -520,17 +826,25 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 	//if(isDes)one.erase(0,1);
 	if(one=="operator"){
 		isop=1;
-		const char*r=oneterm::getSTerm(s);
+		char*r=oneterm::getSTerm(s);
 		if(r)one=r;
 		SCANER::noProbel(s);
 		}
 	if(*s!='('){
 		if(isop){
 			er=1;
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"EZ001",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(this->F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Обявлен недопустимый оператор в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			}
 		s=ss;
 		return NULL;
@@ -540,6 +854,7 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 	V_S		names;
 	V_AL	defaults;
 	i=getSpisokArgs(tips,names,defaults,s);
+	if(i==10)argumentsON=1;
 	if(i==2){
 		er=1;
 		for(i=0;i<defaults.size();++i)
@@ -566,10 +881,18 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 		}else if(*s==';'){i=3;++s;}
 	if(i==1){
 		er=1;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,ss));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"EF002",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,ss))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Объявление функции должно заканчиваться символом ';' в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,ss));
+			PHTML+="</font><br/>\n";
+			}
 		return NULL;
 		}
 	Function*F=file->FindFunction(row,1);
@@ -580,11 +903,13 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 	F->ret=t;
 	F->tips=tips;
 	if(F->names.empty())F->names=names;else{
-		for(int j=0;j<names.size();++j)
+		int j;
+		for(j=0;j<names.size();++j)
 			if(!names[j].empty())F->names[j]=names[j];
 		}
 	if(F->defaults.empty())F->defaults=defaults;else{
-		for(int j=0;j<defaults.size();++j){
+		int j;
+		for(j=0;j<defaults.size();++j){
 			if(!F->defaults[j] && defaults[j]){
 				F->defaults[j]=defaults[j];
 				continue;
@@ -598,11 +923,19 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 	if(i)return F;
 	if(F->Body){
 		er=1;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ \"";PHTML+=F->getHead();
-		PHTML+="\" пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"ER003",
+			F->getHead().c_str(),
+			SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Функция \"";PHTML+=F->getHead();
+			PHTML+="\" уже задана. Не должно быть повторного обявления заданой функции в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
+			PHTML+="</font><br/>\n";
+			}
 		return NULL;
 		}
 	SCANER::noProbel(s);
@@ -627,10 +960,18 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 				}
 			SE.nabor.push_back(cv.copy());
 			if(er){
-				PHTML+="<font class='red'>";
-				PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-				PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
-				PHTML+=". пїЅпїЅпїЅпїЅпїЅпїЅ: f(int i):a(i),p(i,i){}</font><br/>\n";
+				bool isOK = Main->GoErrorMessage(
+					PHTML,
+					"ES004",
+					"",
+					SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss))
+					);
+				if(!isOK){
+					PHTML+="<font class='red'>";
+					PHTML+="Синтаксическая ошибка в заголовке функции в строке: ";
+					PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
+					PHTML+=". Пример: f(int i):a(i),p(i,i){}</font><br/>\n";
+					}
 				return NULL;
 				}
 			++s;
@@ -643,10 +984,18 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 		F->sxema=getSxema(s);
 		if(F->sxema)F->sxema->f=F;
 		if(!F->sxema){
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ-пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"EF005",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Ошибка в теле функции-схемы в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
+				PHTML+="</font><br/>\n";
+				}
 			}
 		return F;
 		}
@@ -661,18 +1010,27 @@ Function* Assemble::getFunction(const char*&s,int&er,File*file){
 		}else F->Body=SE.copy();
 	if(F->Body)F->Body->initUP(NULL);
 	if(er){
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"EF006",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Ошибка в теле функции в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(this->F.text,ss));
+			PHTML+="</font><br/>\n";
+			}
 		}
+	F->argumentsON=argumentsON;
 	return F;
 }
 
 
 
 
-CLASS* Assemble::getClass(const char*&s,int&er,File*ff,CLASS*Space){
+CLASS* Assemble::getClass(char*&s,int&er,File*ff,CLASS*Space){
 	if(!Space)Space=GlobalSpace;
 	SCANER::noProbel(s);
 	if(!SCANER::scanSlovo("class",s))return NULL;
@@ -696,7 +1054,7 @@ CLASS* Assemble::getClass(const char*&s,int&er,File*ff,CLASS*Space){
 	if(*s!='{'){
 		er=1;
 		PHTML+="<font class='red'>";
-		PHTML+="пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ '{' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
+		PHTML+="В описании класса нужна скобка '{' в строке: ";
 		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
 		PHTML+="</font><br/>\n";
 		return S;
@@ -729,7 +1087,7 @@ CLASS* Assemble::getClass(const char*&s,int&er,File*ff,CLASS*Space){
 		}while(*s!='}');
 	if(er){
 		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
+		PHTML+="Синтаксическая ошибка в описании класса в строке: ";
 		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
 		PHTML+="</font><br/>\n";
 		return S;
@@ -739,7 +1097,7 @@ CLASS* Assemble::getClass(const char*&s,int&er,File*ff,CLASS*Space){
 	if(*s!=';'){
 		er=2;
 		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
+		PHTML+="Требуетса символ ';' после описания класса в строке: ";
 		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
 		PHTML+="</font><br/>\n";
 		}
@@ -750,24 +1108,23 @@ CLASS* Assemble::getClass(const char*&s,int&er,File*ff,CLASS*Space){
 
 
 
-int Assemble::Load(const char*way,bool nedsav){
-	File*ff=lastFile=new File(Main);
-	ff->Nusers=1;
-	ff->NeedSave=nedsav;
-	const char*s=F.text,*ss;
-	int er=0;
+// s - text program
+int Assemble::Load(const char*way,char*s,bool nedsav){
+	File*ff = lastFile = new File(Main);
+	ff->Nusers = 1;
+	ff->NeedSave = nedsav;
+	char*ss; // *s=F.text,
+	int er = 0;
 	string sway=way;
 	int a,b;
-	a=sway.find_last_of('/');
+	a=sway.find_last_of('\\');
 	ff->way=sway.substr(0,a);
 	++a;
 	b=sway.find_last_of('.');
 	ff->name=sway.substr(a,b-a);
 	SCANER::noProbel(s);
 	CVARIANT K;
-	K.avtoSet("string");
-	*K.DATA.ps="WAY";
-	K=(*GlobalSpace->Map.DATA.mapVal)[K];
+	K=(*GlobalSpace->Map.DATA.mapVal)["WAY"];
 	K.TransformType("string");
 	string WAY=*K.DATA.ps;
 	sway=ff->way.substr(0,WAY.size());
@@ -787,7 +1144,7 @@ int Assemble::Load(const char*way,bool nedsav){
 				++s;
 				}
 			if(*s=='>' || *s=='"')++s;
-			str=WAY+"/"+str;
+			str = WAY+"\\"+str;
 			ff->modules.push_back(str);
 			}
 		CLASS*S=getClass(s,er,ff);
@@ -799,7 +1156,7 @@ int Assemble::Load(const char*way,bool nedsav){
 			continue;
 			}
 		if(er)break;
-		Function*f=getFunction(s,er,ff);
+		Function*f = getFunction(s,er,ff);
 		if(er)break;
 		if(ss==s){
 			er=1;
@@ -808,7 +1165,7 @@ int Assemble::Load(const char*way,bool nedsav){
 		SCANER::noProbel(s);
 		}
 	//cout<<ff->toString().c_str()<<endl;//
-	if(er)ff->NeedSave=0;
+	if(er)ff->NeedSave = 0;
 	return er;
 }
 

@@ -111,8 +111,8 @@ MarkerLine::MarkerLine(const MarkerLine&t):BasisLine(t){
 UGraf::UGraf(){nfree=0;}
 
 UGraf::~UGraf(){
-	int i=0;
-	for(;i<lincs.size();++i)delete lincs[i];
+	int i;
+	for(i=0;i<lincs.size();++i)delete lincs[i];
 	for(i=0;i<markers.size();++i)delete markers[i];
 }
 
@@ -193,14 +193,14 @@ string UGraf::toString(string name) const{
 
 
 
-int UGraf::getUnits(S_I&si){
-	V_NL::iterator it=lincs.begin();
+int UGraf::getUnits(S_I&si) const{
+	V_NL::const_iterator it=lincs.begin();
 	for(;it!=lincs.end();++it){
 		NetLine*nl=*it;
 		si.insert(nl->a);
 		si.insert(nl->b);
 		}
-	V_ML::iterator jt=markers.begin();
+	V_ML::const_iterator jt=markers.begin();
 	for(;jt!=markers.end();++jt)si.insert((*jt)->a);
 	return si.size();
 }
@@ -209,9 +209,9 @@ int UGraf::getUnits(S_I&si){
 
 
 // x:-  0- 1< 2?
-void UGraf::findMarker(V_BL&vbl,int a,char x,string*n,char y,string*m){
+void UGraf::findMarker(V_BL&vbl,int a,char x,string*n,char y,string*m) const {
 	char xx,yy;
-	V_ML::iterator it=markers.begin();
+	V_ML::const_iterator it=markers.begin();
 	for(;it!=markers.end();++it){
 		MarkerLine*ml=*it;
 		if(a>=0)if(ml->a!=a)continue;
@@ -228,10 +228,10 @@ void UGraf::findMarker(V_BL&vbl,int a,char x,string*n,char y,string*m){
 
 
 // x:-  0- 1< 2?
-void UGraf::findNet(V_BL&vbl,int a,char x,string*n,char y,int b){
+void UGraf::findNet(V_BL&vbl,int a,char x,string*n,char y,int b) const {
 	bool revers=0;
 	char xx,yy;
-	V_NL::iterator it=lincs.begin();
+	V_NL::const_iterator it=lincs.begin();
 	for(;it!=lincs.end();++it){
 		NetLine*nl=*it;
 		if(a>=0 && b>=0){
@@ -263,7 +263,8 @@ void UGraf::findNet(V_BL&vbl,int a,char x,string*n,char y,int b){
 // x:-  0- 1< 2?
 void UGraf::deleteMarker(int a,char x,string*n,char y,string*m){
 	char xx,yy;
-	for(int i=0;i<markers.size();++i){
+	int i;
+	for(i=0;i<markers.size();++i){
 		MarkerLine*ml=markers[i];
 		if(a>=0)if(ml->a!=a)continue;
 		xx=ml->c&1;
@@ -282,7 +283,8 @@ void UGraf::deleteMarker(int a,char x,string*n,char y,string*m){
 void UGraf::deleteNet(int a,char x,string*n,char y,int b){
 	bool revers=0;
 	char xx,yy;
-	for(int i=0;i<lincs.size();++i){
+	int i;
+	for(i=0;i<lincs.size();++i){
 		NetLine*nl=lincs[i];
 		if(a>=0 && b>=0){
 			revers=(nl->a==b && nl->b==a);
@@ -434,7 +436,7 @@ bool UGraf::operator == (const UGraf&t){
 				}
 		}
 	if(i2)delete i2;
-	DE_I2::iterator id=dei2.begin();
+	DE_I2::iterator id = dei2.begin();
 	for(;id!=dei2.end();++id)delete *id;
 	return ret;
 }
@@ -443,7 +445,7 @@ bool UGraf::operator == (const UGraf&t){
 
 
 
-// пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 
+// сравнит маркеры узлов 
 bool UGraf::equale(UGraf*UGA,UGraf*UGB,int a,int b){
 	char x,y,xx,yy;
 	V_BL vbl_a,vbl_b;
@@ -484,8 +486,8 @@ bool UGraf:: operator > (const UGraf&t){
 	if(markers.size()>t.markers.size())return 1;
 	if(markers.size()<t.markers.size())return 0;
 	if(*this==t)return 0;
-	int i=0;
-	for(;i<lincs.size();++i){
+	int i;
+	for(i=0;i<lincs.size();++i){
 		NetLine*A=lincs[i],*B=t.lincs[i];
 		if(A->name.size()>B->name.size())return 1;
 		if(A->name.size()<B->name.size())return 0;
@@ -563,6 +565,136 @@ void UGraf::import(const char*s){
 		if(t==1)add(new MarkerLine(A,a,m.c_str(),b,mm.c_str()));
 		}
 }
+
+
+
+
+int UGraf::getSizeOf() const {
+	int size = sizeof(nfree);
+	size += lincs.size() * (sizeof(NetLine) + sizeof(NetLine*));
+	size += markers.size() * (sizeof(MarkerLine) + sizeof(MarkerLine*));
+	return size;
+}
+
+
+
+
+CVARIANT* UGraf::ExportData() const {
+	CVARIANT* R = new CVARIANT();
+	R->avtoSet("vector");
+	CVARIANT*A,*B;
+	int i,size;
+	size = lincs.size();
+	for(i=0;i<size;++i){
+		const NetLine*NL = lincs[i];
+		A = new CVARIANT();
+		A->avtoSet("vector");
+		B = new CVARIANT();
+		B->avtoSet("int");
+		B->DATA.intVal = NL->a;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("string");
+		*B->DATA.ps = NL->name;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("int");
+		B->DATA.intVal = NL->b;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("int");
+		B->DATA.intVal = NL->c;
+		A->DATA.vectorVal->push_back(B);
+		R->DATA.vectorVal->push_back(A);
+		}
+	size = markers.size();
+	for(i=0;i<size;++i){
+		const MarkerLine*ML = markers[i];
+		A = new CVARIANT();
+		A->avtoSet("vector");
+		B = new CVARIANT();
+		B->avtoSet("int");
+		B->DATA.intVal = ML->a;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("string");
+		*B->DATA.ps = ML->name;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("string");
+		*B->DATA.ps = ML->marker;
+		A->DATA.vectorVal->push_back(B);
+		B = new CVARIANT();
+		B->avtoSet("int");
+		B->DATA.intVal = ML->c;
+		A->DATA.vectorVal->push_back(B);
+		R->DATA.vectorVal->push_back(A);
+		}
+	return R;
+}
+
+
+
+
+
+bool UGraf::ImportData(CVARIANT*Data){
+	bool isValid;
+	if(!Data)return 0;
+	isValid = Data->isType("vector");
+	if(!isValid)return 0;
+	int i,size;
+	size = Data->DATA.vectorVal->size();
+	// validation Data:
+	for(i=0;i<size;++i){
+		CVARIANT*A = (*Data->DATA.vectorVal)[i];
+		isValid = A->isType("vector");
+		if(!isValid)return 0;
+		isValid = (A->DATA.vectorVal->size()==4);
+		if(!isValid)return 0;
+		}
+	for(i=0;i<size;++i){
+		CVARIANT*A = (*Data->DATA.vectorVal)[i];
+		CVARIANT*B;
+		B = (*A->DATA.vectorVal)[2]; // number or string
+		bool isString,isInt;
+		isString = B->isType("string"); // for marker
+		isInt = B->isType("int"); // for net
+		isValid = (isString || isInt);
+		if(!isValid)break;
+		int a,b,c;
+		string*sMarker,*sName;
+		if(isString)sMarker = B->DATA.ps;
+		if(isInt)b = B->DATA.intVal;
+		B = (*A->DATA.vectorVal)[0];
+		isValid = B->isType("int");
+		if(!isValid)break;
+		a = B->DATA.intVal;
+		B = (*A->DATA.vectorVal)[1];
+		isValid = B->isType("string");
+		if(!isValid)break;
+		sName = B->DATA.ps;
+		B = (*A->DATA.vectorVal)[3];
+		isValid = B->isType("int");
+		if(!isValid)break;
+		c = B->DATA.intVal;
+		if(isString){
+			MarkerLine*ML = new MarkerLine(a,0,sName->c_str(),0,sMarker->c_str());
+			ML->c = c;
+			markers.push_back(ML);
+			if(nfree<=a)nfree = ++a;
+			}
+		if(isInt){
+			NetLine*NL = new NetLine(a,0,sName->c_str(),0,b);
+			NL->c = c;
+			lincs.push_back(NL);
+			if(nfree<=a)nfree = ++a;
+			if(nfree<=b)nfree = ++b;
+			}
+		}
+	return isValid;
+}
+
+
 
 
 

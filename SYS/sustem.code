@@ -5,8 +5,12 @@
 
 void main(){
 	trace("Welcome in lenguage Author!");
-	trace("Programmist: Р’Р°РґРёРј Р”РѕРІРіРѕРїРѕР»С‹Р№.");
-	trace("(C) OFF");
+	trace("Please read file: out.html.");
+	echo("Это ваш первый запуск языка Автор. Поздравляю.<br/>");
+	echo("Для запуска файла с кодом программы перетащите его на файл author.exe.<br/>");
+	echo("Язык запоминает последний запущенный файл и вызывает его при запуске без параметров.<br/>");
+	trace("Press enter for quit.");
+	getstring();
 }
 
 

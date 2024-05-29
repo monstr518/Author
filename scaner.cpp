@@ -44,6 +44,10 @@ string SCANER::writeString(const string&s){
 			R+="\\n";
 			continue;
 			}
+		if(c=='\r'){
+			R+="\\r";
+			continue;
+			}
 		if(c=='\\' || c=='\"')R+='\\';
 		R+=c;
 		}
@@ -62,6 +66,7 @@ string SCANER::convertString(string&s){
 		if(c=='\\'){
 			c=s[++i];
 			if(c=='n')c='\n';
+			if(c=='r')c='\r';
 			}
 		R+=c;
 		}
@@ -117,13 +122,14 @@ void SCANER::scanDigit(const char*&p,string&s,int sus){
 }
 
 
-long double SCANER::getNumber(string&s,int sus){
-	long double R=0;
+unsigned long double SCANER::getNumber(string&s,int sus){
+	unsigned long double R=0;
 	int t;
-	for(int i=0;i<s.length();i++){
+	int i;
+	for(i=0;i<s.length();i++){
 		R*=sus;
 		isDigit(s[i],sus,&t);
-		if(t>sus)return R;
+		if(t>=sus)return R;
 		R+=t;
 		}
 	return R;
@@ -206,14 +212,14 @@ int SCANER::findNumberStringLine(const char*begin,const char*s){
 		if(*begin=='\n')++n;
 		if(begin==s)break;
 		}
-	if(!begin)n=0;
+	if(!begin)n=0; //не найдено.
 	return n;
 }
 
 
 string SCANER::trim(string s){
-	int i=0;
-	for(;i<s.c_str()[i];++i)if(s.c_str()[i]!=' '){s=s.substr(i);break;}
+	int i;
+	for(i=0;i<s.c_str()[i];++i)if(s.c_str()[i]!=' '){s=s.substr(i);break;}
 	for(i=s.length()-1;i>=0;--i)if(s.c_str()[i]!=' ')break;
 	s=s.substr(0,i+1);
 	return s;
@@ -235,7 +241,7 @@ string SCANER::readName(const char*&s){
 
 
 
-
+//прочитать строку как есть.
 string SCANER::readString(const char*&s){
 	string str;
 	if(*s!='"')return str;
@@ -319,12 +325,15 @@ int SCANER::scanSlovo(const char*slovo,const char*&s){
 
 
 void SCANER::poTabu(string&u){
-	for(int i=0;i<u.size();++i)
+	int i;
+	for(i=0;i<u.size();++i)
 		if(u[i]=='\n'){
 			++i;
 			u.insert(i,"	");
 			}
 }
+
+
 
 
 //	scaner.cpp	:-|

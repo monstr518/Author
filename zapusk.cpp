@@ -17,13 +17,15 @@ TRAVERS::TRAVERS(CVARIANT*t,int i){
 FRAGMENT::FRAGMENT(FRAGMENT*P){Prev=P;}
 
 FRAGMENT::~FRAGMENT(){
-	for(int i=0;i<Next.size();++i)if(Next[i])delete Next[i];
+	int i;
+	for(i=0;i<Next.size();++i)if(Next[i])delete Next[i];
 }
 
 
 string FRAGMENT::toString(){
 	string s;
-	for(int i=0;i<Memorys.size();++i){
+	int i;
+	for(i=0;i<Memorys.size();++i){
 		string a;
 		Memorys[i]->toString(a);
 		s+=a;
@@ -38,7 +40,8 @@ CVARIANT* FRAGMENT::getDynamicValue(int n){
 	CVARIANT*R=Prev->getDynamicValue(n);
 	if(!R)return NULL;
 	Prev->Dynamic.erase(n);
-	for(int i=0;i<Prev->Next.size();++i)
+	int i;
+	for(i=0;i<Prev->Next.size();++i)
 		Prev->Next[i]->Dynamic[n]=i?R->copy():R;
 	return Dynamic[n];
 }
@@ -114,17 +117,17 @@ Laver::~Laver(){
 }
 
 
-string Laver::printVariants(FRAGMENT*F,V_FRAGMENT*VF){
+string Laver::printVariants(FRAGMENT*F,V_pFRAGMENT*VF){
 	if(!VF){
-		VF=new(V_FRAGMENT);
+		VF=new(V_pFRAGMENT);
 		string s=printVariants(F,VF);
 		delete VF;
 		return s;
 		}
 	string s;
 	VF->push_back(F);
-	int i=0;
-	for(;i<F->Next.size();++i){
+	int i;
+	for(i=0;i<F->Next.size();++i){
 		s+=printVariants(F->Next[i],VF);
 		}
 	if(F->Next.empty()){
@@ -171,7 +174,8 @@ I::I(const I&t){
 	F->Next.push_back(Fundament);
 
 	D_subI::const_iterator it2,it=t.posicse.begin();
-	for(int first=1;it!=t.posicse.end();++it){
+	int first;
+	for(first=1;it!=t.posicse.end();++it){
 		posicse.push_back(new subI(**it));
 		if(!first){
 			M_AA::const_iterator iit=(*it2)->problemEval.begin();
@@ -211,16 +215,14 @@ I::~I(){
 
 I* I::OFFtoStop(MAIN*M){
 	FRAGMENT*&F=Fundament,*F2;
-	CVARIANT S,E;
-	S.avtoSet("string");
-	E.avtoSet("string");
-	*S.DATA.ps="this-f";
-	*E.DATA.ps="stopoff*";
+	string S,E;
+	S="this-f";
+	E="stopoff*";
 	while(F->Next.empty()){
 		while(F->Memorys.size()){
 			CVARIANT*X=*F->Memorys.rbegin();
-			M_CVARIANT*map=X->DATA.mapVal;
-			M_CVARIANT::iterator it=map->begin();
+			M_SV*map=X->DATA.mapVal;
+			M_SV::iterator it=map->begin();
 			for(;it!=map->end();++it){
 				if(it->first==S){
 					delete sub;
@@ -248,22 +250,34 @@ I* I::OFFtoStop(MAIN*M){
 
 
 //--------------------------------------------------------------------------------------------------
+unsigned long __stdcall MAIN::fork(void*X){
+	interfaceFORK*Y=(interfaceFORK*)X;
+	MAIN*M=Y->M;
+	if(Y->VCV.empty()){
+		cout<<"Error fork. Whot name function?"<<endl;
+		}else M->RUN(&Y->VCV);
+	delete Y;
+	return 0;
+}
+
+
+
 void MAIN::RUN(V_CVARIANT*VCV){
 	string name="Main";
 	File*file=NULL;
 	Function*f=NULL;
 	if(!VCV){
-		file=findModule("SYS/main");
+		file=findModule("SYS\\main");
 		if(!file){
-			cout<<"SYS/main not found!!!"<<endl;
-			usleep(2000);
+			cout<<"SYS\\main noy found!!!"<<endl;
+			Sleep(2000);
 			return;
 			}
 		f=file->FindFunction(name);
 		if(f)if(!f->Body && !f->sxema)f=NULL;
 		if(!f){
 			cout<<"Undefine start function: "<<name.c_str()<<endl;
-			usleep(2000);
+			Sleep(2000);
 			return;
 			}
 		}else{
@@ -280,16 +294,17 @@ void MAIN::RUN(V_CVARIANT*VCV){
 		}
 	Laver*L=tableLavers[FreeLaver]=new Laver(FreeLaver);
 	I*me=new I(FreeLaver);
-	CVARIANT *A,S,NF;
+	CVARIANT *A,NF;
 	A=new(CVARIANT);
 	A->avtoSet("map");
-	S.avtoSet("string");
+	string S;
 	NF.avtoSet("string");
-	*S.DATA.ps="this-f";
+	S="this-f";
 	*NF.DATA.ps="f:"+name;
 	(*A->DATA.mapVal)[S]=NF;
-	if(VCV)for(int i=1;i<VCV->size()&&i-1<f->names.size();++i){
-		*S.DATA.ps=f->names[i-1];
+	int i;
+	if(VCV)for(i=1;i<VCV->size()&&i-1<f->names.size();++i){
+		S=f->names[i-1];
 		(*A->DATA.mapVal)[S]=(*VCV)[i];
 		}
 	L->Head.Memorys.push_back(A);
@@ -329,7 +344,7 @@ void MAIN::BlokiClear(I*Pset){
 }
 
 
-
+//главна€ точка обработки программы
 void MAIN::Mahine(int activLaver){
 	Laver*LL=tableLavers[activLaver];
 	I*Pset=LL->IS[LL->activI];
@@ -340,7 +355,7 @@ void MAIN::Mahine(int activLaver){
 	while(Pset){
 		while(Pset->stop!=1 && !LL->off){
 			if(!Pset->sub->ActivF){LL->off=Pset->off=1;break;}
-			B=Pset->sub->pos;
+			B = Pset->sub->pos;
 			if(B==Pset->sub->ActivF->sxema->HeadEnd){isEndf=1;break;}
 			if(!Pset->stop && B->A){
 				CVARIANT*V=NULL;
@@ -377,8 +392,15 @@ void MAIN::Mahine(int activLaver){
 				break;
 				}
 			if(si==1)Pset->sub->pos=B->down[0];else{
+				bool isNeedWarningIF = true;
+				if(Data){
+					JSON::ONE *JV = Data->one->getValue("isNeedWarningIF#");
+					if(JV)isNeedWarningIF = (bool)JV->intVal;
+					}
+				if(isNeedWarningIF)cout<<B->toString().c_str()<<endl;
 				Pset->sub->pos=B->down[0];
-				for(int t=1;t<si;++t){
+				int t;
+				for(t=1;t<si;++t){
 					I*me=new I(*Pset);
 					me->sub->pos=B->down[t];
 					LL->IS.push_back(me);
@@ -409,8 +431,8 @@ void MAIN::Mahine(int activLaver){
 			//LL=tableLavers[activLaver];
 			int isFreeFunctionPrev=Pset->sub->isFreeFunction;
 			if(Pset->sub->isFreeFunction){
-				int j=0,i=0;
-				for(;i<LL->IS.size();++i)
+				int i,j;
+				for(j=0,i=0;i<LL->IS.size();++i)
 					if(LL->IS[i]->sub->ActivF==Pset->sub->ActivF)++j;
 				if(j<=1)delete Pset->sub->ActivF;
 				noClose=1;
@@ -481,7 +503,7 @@ void MAIN::Mahine(int activLaver){
 					}
 				i=rand()%mapProcess.size();
 				p=mapProcess[i];
-
+				//¬ключаю группу процессов (p)
 				Pset=LL->IS[p];
 				LL->adaptationMap.clear();
 				for(i=0;i<LL->IS.size();++i)
@@ -504,9 +526,9 @@ void MAIN::Mahine(int activLaver){
 							Pset=LL->IS[k];
 							CVARIANT*X=NULL;
 							Base::findVar(Pset,this,X,Pset->DefineNames[i],pos);
-							RONE.DATA.vectorVal->push_back(X?*X:E);
+							RONE.DATA.vectorVal->push_back((X?*X:E).copy());
 							}
-						LL->ResultDEF.DATA.vectorVal->push_back(RONE);
+						LL->ResultDEF.DATA.vectorVal->push_back(RONE.copy());
 						RONE.DATA.vectorVal->clear();
 						}
 					Pset->DefineNames.clear();
@@ -550,7 +572,8 @@ void MAIN::Mahine(int activLaver){
 
 
 void MAIN::L_IS(Laver*LL,Function*f){
-	for(int i=0;i<LL->IS.size();++i){
+	int i;
+	for(i=0;i<LL->IS.size();++i){
 		D_subI::iterator it=LL->IS[i]->posicse.begin();
 		for(;it!=LL->IS[i]->posicse.end();++it)
 			if((*it)->ActivF==f)(*it)->ActivF=NULL;
@@ -561,19 +584,21 @@ void MAIN::L_IS(Laver*LL,Function*f){
 
 void MAIN::ProgresMemory(I*Pset,CVARIANT&A,CVARIANT&t){
 	Laver*L=tableLavers[Pset->Laver];
-	for(int i=0;i<L->IS.size();++i){
+	int i;
+	for(i=0;i<L->IS.size();++i){
 		I*me=L->IS[i];
-		for(int j=0;j<me->posicse.size();++j){
+		int j;
+		for(j=0;j<me->posicse.size();++j){
 			subI*sub=me->posicse[j];
 			M_AlgoT::iterator it=sub->Bloki.begin();
 			for(;it!=sub->Bloki.end();++it){
-				M_CVARIANT::iterator jt=t.DATA.mapVal->begin();
+				M_SV::iterator jt=t.DATA.mapVal->begin();
 				for(;jt!=t.DATA.mapVal->end();++jt)if(it->second.X==&jt->second){
-					const CVARIANT*K=&jt->first;
-					CVARIANT*V=&(*A.DATA.mapVal)[*K];
+					CVARIANT*V=&(*A.DATA.mapVal)[jt->first];
 					it->second.X=V;
 					if(sub==Pset->sub){
-						for(int k=0;k<sub->problemRozpada.size();++k){
+						int k;
+						for(k=0;k<sub->problemRozpada.size();++k){
 							CVARIANT**X=sub->problemRozpada[k];
 							if(*X==&jt->second)*X=V;
 							}
@@ -602,7 +627,8 @@ int MAIN::PAGECLOSE(I*Pset,int stop){
 				continue;
 				}
 			CVARIANT*tmp=H->Memorys[H->Memorys.size()-1];
-			for(int i=0;i<H->Next.size();++i){
+			int i;
+			for(i=0;i<H->Next.size();++i){
 				P=H->Next[i];
 				P->Memorys.insert(P->Memorys.begin(),tmp->copy());
 				ProgresMemory(Pset,**P->Memorys.begin(),*tmp);
@@ -614,10 +640,8 @@ int MAIN::PAGECLOSE(I*Pset,int stop){
 		}
 	bool b=0;
 	if(H){
-		CVARIANT*V=*H->Memorys.rbegin(),S;
-		S.avtoSet("string");
-		*S.DATA.ps="this-f";
-		b=V->DATA.mapVal->find(S)!=V->DATA.mapVal->end();
+		CVARIANT*V=*H->Memorys.rbegin();
+		b=V->DATA.mapVal->find("this-f")!=V->DATA.mapVal->end();
 		if(b&&stop)return 0;
 		//cout<<FragmentOneToString(H->Memorys.rbegin()->DATA.mapVal).c_str()<<endl;
 		delete *H->Memorys.rbegin();
@@ -629,12 +653,11 @@ int MAIN::PAGECLOSE(I*Pset,int stop){
 
 
 
-string MAIN::FragmentOneToString(M_CVARIANT*MC){
+string MAIN::FragmentOneToString(M_SV*MC){
 	string str;
-	M_CVARIANT::iterator it=MC->begin();
+	M_SV::iterator it=MC->begin();
 	for(;it!=MC->end();++it){
-		const CVARIANT*A=&it->first;
-		str+=*A->DATA.ps;
+		str+=it->first;
 		str+="	: ";
 		string s;
 		it->second.toString(s);
@@ -674,7 +697,7 @@ void MAIN::getMapKeys(I*Pset,CVARIANT*&R,string&ss,bool create){
 			s="";
 			}
 		if(!b2){
-			if(!R->isType("string")){
+			if(!(R->isType("string") || R->isType("pointer"))){
 				R=NULL;
 				break;
 				}
@@ -685,24 +708,25 @@ void MAIN::getMapKeys(I*Pset,CVARIANT*&R,string&ss,bool create){
 			if(!R)break;
 			}
 		if(R->isType("map")){
-			M_CVARIANT&GM=*R->DATA.mapVal;
+			M_SV&GM=*R->DATA.mapVal;
 			CVARIANT A;
 			A.avtoSet("string");
 			*A.DATA.ps=t;
 			ss+="."+t;
-			if(!create)if(GM.find(A)==GM.end()){
+			
+			if(!create)if(GM.find(t)==GM.end()){
 				CVARIANT P=A;
 				A.TransformType("int");
-				CVARIANT P2=A;
-				P2.TransformType("string");
+				A.TransformType("string");
 				bool ok=1;
-				if(P2==P)if(GM.find(A)!=GM.end())ok=0;
+				if(A==P)if(GM.find(t)!=GM.end())ok=0;
 				if(ok){
 					R=NULL;
 					break;
 					}
 				}
-			R=&GM[A];
+			
+			R=&GM[t];
 			continue;
 			}
 		if(R->isType("vector")){
@@ -710,7 +734,7 @@ void MAIN::getMapKeys(I*Pset,CVARIANT*&R,string&ss,bool create){
 			sscanf(t.c_str(),"%d",&n);
 			if(!n)if(t!="0")n=-1;
 			if(n>=0 && n<R->DATA.vectorVal->size()){
-				R=&(*R->DATA.vectorVal)[n];
+				R=(*R->DATA.vectorVal)[n];
 				continue;
 				}
 			}
@@ -737,11 +761,8 @@ CVARIANT* MAIN::getUnLink(I*Pset,string&s,bool&needKill){
 			t=s;
 			s="";
 			}
-		M_CVARIANT&GM=*GlobalSpace.Map.DATA.mapVal;
-		CVARIANT A;
-		A.avtoSet("string");
-		*A.DATA.ps=t;
-		R=&GM[A];
+		M_SV&GM=*GlobalSpace.Map.DATA.mapVal;
+		R=&GM[t];
 		isGlobal=1;
 		}
 	int p=s.find(".");
@@ -816,24 +837,21 @@ CVARIANT* MAIN::getUnLink2(I*Pset,string&s){
 		s=s.substr(i);
 		}
 	FRAGMENT*F=Pset->Fundament;
-	V_FRAGMENT VF;
+	V_pFRAGMENT VF;
 	while(F){
 		VF.push_back(F);
 		F=F->Prev;
 		}
 	CVARIANT*CV=NULL;
-	int j=VF.size()-1;
-	for(;j>=0;--j){
+	int j;
+	for(j=VF.size()-1;j>=0;--j){
 		if(VF[j]->Memorys.size()>n)CV=VF[j]->Memorys[n];
 		n-=VF[j]->Memorys.size();
 		if(n<0)break;
 		}
 	if(!CV)return NULL;
-	CVARIANT S;
-	S.avtoSet("string");
-	*S.DATA.ps=name;
 	CVARIANT*R;
-	if(!L->rop)R=&(*CV->DATA.mapVal)[S];else{
+	if(!L->rop)R=&(*CV->DATA.mapVal)[name];else{
 		int nvf=0;
 		for(j=0;j<VF.size();++j)nvf+=VF[j]->Memorys.size();
 		bool isFind=0;
@@ -850,7 +868,8 @@ CVARIANT* MAIN::getUnLink2(I*Pset,string&s){
 			while(H->Memorys.size()){
 				int i2=H->Memorys.size();
 				CVARIANT*tmp=H->Memorys[i2-1];
-				for(int i=0;i<H->Next.size();++i){
+				int i;
+				for(i=0;i<H->Next.size();++i){
 					P=H->Next[i];
 					P->Memorys.insert(P->Memorys.begin(),tmp->copy());
 					ProgresMemory(Pset,**P->Memorys.begin(),*tmp);
@@ -874,7 +893,7 @@ CVARIANT* MAIN::getUnLink2(I*Pset,string&s){
 				}
 			}
 		if(isFind)CV=Pset->Fundament->Memorys[0];
-		R=&(*CV->DATA.mapVal)[S];
+		R=&(*CV->DATA.mapVal)[name];
 		}
 	string ss=s;
 	MAIN::getMapKeys(Pset,R,ss,0);
@@ -884,17 +903,15 @@ CVARIANT* MAIN::getUnLink2(I*Pset,string&s){
 
 
 
-bool MAIN::isset(I*Pset,const CVARIANT&V){
+bool MAIN::isset(I*Pset,const string&V){
 	FRAGMENT*H=Pset->Fundament;
-	CVARIANT S;
-	S.avtoSet("string");
-	*S.DATA.ps="this-f";
 	while(H){
-		for(int i=H->Memorys.size()-1;i>=0;--i){
+		int i;
+		for(i=H->Memorys.size()-1;i>=0;--i){
 			CVARIANT*C=H->Memorys[i];
-			M_CVARIANT*MC=C->DATA.mapVal;
+			M_SV*MC=C->DATA.mapVal;
 			if(MC->find(V)!=MC->end())return 1;
-			if(MC->find(S)!=MC->end()){H=NULL;break;}
+			if(MC->find("this-f")!=MC->end()){H=NULL;break;}
 			}
 		if(!H)break;
 		H=H->Prev;

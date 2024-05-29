@@ -10,21 +10,17 @@ CVARIANT Algorithm::Analysis(){
 
 
 CVARIANT Base::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("int");
-	*S.DATA.ps="vid";
 	V.DATA.intVal=type==4?5:0;
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["vid"]=V;
 	V.avtoSet("string");
 	if(!type){
-		*S.DATA.ps="name";
 		*V.DATA.ps=text;
-		(*R.DATA.mapVal)[S]=V;
+		(*R.DATA.mapVal)["name"]=V;
 		return R;
 		}
-	*S.DATA.ps="value";
 	if(type!=4){
 		//CVARIANT*X;
 		int ifree=0;
@@ -34,109 +30,85 @@ CVARIANT Base::Analysis(){
 		return R;
 		}
 	*V.DATA.ps=text;
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["value"]=V;
 	return R;
 }
 
 
 
 CVARIANT Prefix::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("int");
-	*S.DATA.ps="vid";
 	V.DATA.intVal=1;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
-	*S.DATA.ps="operator";
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	V.avtoSet("string");
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="is";
+	(*R.DATA.mapVal)["operator"]=V;
 	*V.DATA.ps="prefix";
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["is"]=V;
 	return R;
 }
 
 
 
 CVARIANT Base2::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("int");
-	*S.DATA.ps="vid";
 	V.DATA.intVal=2;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=A->Analysis();
-	*S.DATA.ps="B";
-	(*R.DATA.mapVal)[S]=B->Analysis();
-	*S.DATA.ps="operator";
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=A->Analysis();
+	(*R.DATA.mapVal)["B"]=B->Analysis();
 	V.avtoSet("string");
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["operator"]=V;
 	return R;
 }
 
 
 
 CVARIANT Base3::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("int");
-	*S.DATA.ps="vid";
 	V.DATA.intVal=3;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=A->Analysis();
-	*S.DATA.ps="B";
-	(*R.DATA.mapVal)[S]=B->Analysis();
-	*S.DATA.ps="V";
-	(*R.DATA.mapVal)[S]=this->V->Analysis();
-	*S.DATA.ps="operator";
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=A->Analysis();
+	(*R.DATA.mapVal)["B"]=B->Analysis();
+	(*R.DATA.mapVal)["V"]=this->V->Analysis();
 	V.avtoSet("string");
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["operator"]=V;
 	return R;
 }
 
 
 
 CVARIANT Sufix::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("int");
-	*S.DATA.ps="vid";
 	V.DATA.intVal=1;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
-	*S.DATA.ps="operator";
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	V.avtoSet("string");
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="is";
+	(*R.DATA.mapVal)["operator"]=V;
 	*V.DATA.ps="sufix";
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["is"]=V;
 	return R;
 }
 
 
 
 CVARIANT CallFunc::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="function";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="name";
+	(*R.DATA.mapVal)["vid"]=V;
 	Base*B=dynamic_cast<Base*>(X);
 	if(B)*V.DATA.ps=B->text;
 	Base2*B2=dynamic_cast<Base2*>(X);
@@ -149,168 +121,148 @@ CVARIANT CallFunc::Analysis(){
 		if(B)s+=B->text;
 		*V.DATA.ps=s;
 		}
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="args";
+	(*R.DATA.mapVal)["name"]=V;
 	V.avtoSet("vector");
-	for(int i=0;i<params.size();++i)
-		V.DATA.vectorVal->push_back(params[i]->Analysis());
-	(*R.DATA.mapVal)[S]=V;
+	int i;
+	for(i=0;i<params.size();++i){
+		CVARIANT*X = new CVARIANT();
+		*X = params[i]->Analysis();
+		V.DATA.vectorVal->push_back(X);
+		}
+	(*R.DATA.mapVal)["args"]=V;
 	return R;
 }
 
 
 
 CVARIANT AccesMasiv::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="[]";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
+	(*R.DATA.mapVal)["vid"]=V;
 	V=X->Analysis();
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="arg";
+	(*R.DATA.mapVal)["A"]=V;
 	V=P->Analysis();
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["arg"]=V;
 	return R;
 }
 
 
 
 CVARIANT Cast::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="cast";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
+	(*R.DATA.mapVal)["vid"]=V;
 	V=X->Analysis();
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="cast";
+	(*R.DATA.mapVal)["A"]=V;
 	V=cast.Analysis();
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["cast"]=V;
 	return R;
 }
 
 
 
 CVARIANT Type::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="name";
 	*V.DATA.ps=name;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="n";
+	(*R.DATA.mapVal)["name"]=V;
 	V.avtoSet("int");
 	V.DATA.intVal=n;
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["n"]=V;
 	return R;
 }
 
 
 
 CVARIANT AlgoSet::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="{}";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="args";
+	(*R.DATA.mapVal)["vid"]=V;
 	V.avtoSet("vector");
-	for(int i=0;i<nabor.size();++i)
-		V.DATA.vectorVal->push_back(nabor[i]->Analysis());
-	(*R.DATA.mapVal)[S]=V;
+	int i;
+	for(i=0;i<nabor.size();++i){
+		CVARIANT*X = new CVARIANT();
+		*X = nabor[i]->Analysis();
+		V.DATA.vectorVal->push_back(X);
+		}
+	(*R.DATA.mapVal)["args"]=V;
 	return R;
 }
 
 
 
 CVARIANT AComposition::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="table";
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["vid"]=V;
 	V.avtoSet("map");
 	M_SA::iterator it=table.begin();
 	for(;it!=table.end();++it){
-		*S.DATA.ps=it->first;
-		(*V.DATA.mapVal)[S]=it->second->Analysis();
+		(*V.DATA.mapVal)[it->first]=it->second->Analysis();
 		}
-	*S.DATA.ps="args";
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["args"]=V;
 	return R;
 }
 
 
 CVARIANT Label::Analysis(){
-	CVARIANT R,S,V;
-	R.avtoSet("map");
-	S.avtoSet("string");
+	CVARIANT R,V;
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="label";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="id";
+	(*R.DATA.mapVal)["vid"]=V;
 	V.avtoSet("int");
 	V.DATA.intVal=id;
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["id"]=V;
 	return R;
 }
 
 
 
 CVARIANT Sequence::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="sequence";
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["vid"]=V;
 	return R;
 }
 
 
 
 CVARIANT CreateVar::Analysis(){
-	CVARIANT R,S,V,X;
+	CVARIANT R,V,X;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="var";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="name";
+	(*R.DATA.mapVal)["vid"]=V;
 	*V.DATA.ps=name;
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="type";
-	(*R.DATA.mapVal)[S]=tip.Analysis();
+	(*R.DATA.mapVal)["name"]=V;
+	(*R.DATA.mapVal)["type"]=tip.Analysis();
 	if(Init){
-		*S.DATA.ps="init";
-		(*R.DATA.mapVal)[S]=Init->Analysis();
+		(*R.DATA.mapVal)["init"]=Init->Analysis();
 		}
 	if(isMassiv){
-		*S.DATA.ps="size";
 		V.avtoSet("vector");
-		for(int i=0;i<params.size();++i){
+		int i;
+		for(i=0;i<params.size();++i){
 			if(params[i])X=params[i]->Analysis();else{
 				X.avtoSet("int");
 				X.DATA.intVal=0;
 				}
-			V.DATA.vectorVal->push_back(X);
+			CVARIANT*XX = new CVARIANT();
+			*XX = X;
+			V.DATA.vectorVal->push_back(XX);
 			}
-		(*R.DATA.mapVal)[S]=V;
+		(*R.DATA.mapVal)["size"]=V;
 		}
 	return R;
 }
@@ -319,73 +271,59 @@ CVARIANT CreateVar::Analysis(){
 
 
 CVARIANT SpecSumbol::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
+	(*R.DATA.mapVal)["vid"]=V;
 	return R;
 }
 
 
 
 CVARIANT SpecSumbol2::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps=m[n];
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	return R;
 }
 
 
 
 CVARIANT IF::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="if";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	return R;
 }
 
 
 
 CVARIANT WHILE::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps=(n==1?"while":"do");
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	return R;
 }
 
 
 
 CVARIANT FOR::Analysis(){
-	CVARIANT R,S,V;
+	CVARIANT R,V;
 	R.avtoSet("map");
-	S.avtoSet("string");
 	V.avtoSet("string");
-	*S.DATA.ps="vid";
 	*V.DATA.ps="for";
-	(*R.DATA.mapVal)[S]=V;
-	*S.DATA.ps="A";
-	(*R.DATA.mapVal)[S]=X->Analysis();
+	(*R.DATA.mapVal)["vid"]=V;
+	(*R.DATA.mapVal)["A"]=X->Analysis();
 	return R;
 }
 
@@ -393,6 +331,19 @@ CVARIANT FOR::Analysis(){
 
 //--------------------------------------------------------------------------------------------------
 int Algorithm::getSub(V_I*,int,Algorithm**&){return 0;}
+
+int BaseFunction::getSub(V_I*maps,int n,Algorithm**&W){
+	int r=1;
+	if(!maps)return r;
+	if(maps->size()<=n)return r;
+	int t=(*maps)[n];
+	++n;
+	if(t>=r)return r;
+	W=&Body;
+	r=(*W)->getSub(maps,n,W);
+	return r;
+}
+
 
 int Base::getSub(V_I*maps,int n,Algorithm**&A){return 0;}
 
@@ -526,7 +477,8 @@ int AComposition::getSub(V_I*maps,int n,Algorithm**&W){
 	++n;
 	if(t>=r)return r;
 	M_SA::iterator it=table.begin();
-	for(int i=0;i<t;++it);
+	int i;
+	for(i=0;i<t;++it,++i);
 	W=&it->second;
 	r=(*W)->getSub(maps,n,W);
 	return r;
@@ -544,7 +496,8 @@ int Sequence::getSub(V_I*maps,int n,Algorithm**&W){
 	++n;
 	if(t>=r)return r;
 	L_AL::iterator it=nabor.begin();
-	for(int i=0;i<t;++it)++i;
+	int i;
+	for(i=0;i<t;++it)++i;
 	W=&*it;
 	r=(*W)->getSub(maps,n,W);
 	return r;
@@ -627,6 +580,9 @@ int FOR::getSub(V_I*maps,int n,Algorithm**&W){
 //--------------------------------------------------------------------------------------------------
 int Algorithm::Power(int n) const{return 0;}
 
+
+int BaseFunction::Power(int n) const {return Body->Power(n)+10;}
+
 int Base::Power(int n) const{
 	int nn=1;
 	if(!n)if(type==3)if((int)text.find(".")>=0)++nn;
@@ -639,7 +595,8 @@ int Sufix::Power(int n) const{return X->Power(n)+1;}
 
 int CallFunc::Power(int n) const{
 	int nn=X->Power(n)+1;
-	for(int i=0;i<params.size();++i)nn+=params[i]->Power(n);
+	int i;
+	for(i=0;i<params.size();++i)nn+=params[i]->Power(n);
 	return nn;
 }
 
@@ -653,7 +610,8 @@ int Interval::Power(int n) const{return A->Power(n)+B->Power(n)+1;}
 
 int AlgoSet::Power(int n) const{
 	int nn=1;
-	for(int i=0;i<nabor.size();++i)nn+=nabor[i]->Power(n);
+	int i;
+	for(i=0;i<nabor.size();++i)nn+=nabor[i]->Power(n);
 	return nn;
 }
 
@@ -700,6 +658,8 @@ int FOR::Power(int n) const{
 	return nn;
 }
 
+
+
 //--------------------------------------------------------------------------------------------------
 int Algorithm::PowerW() const {
 	if(dynamic_cast<const Base*>(this))return 1;
@@ -721,12 +681,30 @@ int Algorithm::PowerW() const {
 	if(dynamic_cast<const IF*>(this))return 17;
 	if(dynamic_cast<const WHILE*>(this))return 18;
 	if(dynamic_cast<const FOR*>(this))return 19;
+	if(dynamic_cast<const BaseFunction*>(this))return 20;
 	return 100;
 }
+
+
 
 //--------------------------------------------------------------------------------------------------
 bool Algorithm:: operator > (const Algorithm&) const {return 1;}
 bool Algorithm:: operator < (const Algorithm&) const {return 0;}
+
+
+bool BaseFunction:: operator > (const Algorithm&Z) const {
+	const BaseFunction*BF=dynamic_cast<const BaseFunction*>(&Z);
+	if(argumentsON != BF->argumentsON)return (argumentsON && !BF->argumentsON);
+	if(argumentsNames.size() != BF->argumentsNames.size())return argumentsNames.size() > BF->argumentsNames.size();
+	return Body > BF->Body;
+}
+
+bool BaseFunction:: operator < (const Algorithm&Z) const {
+	const BaseFunction*BF=dynamic_cast<const BaseFunction*>(&Z);
+	if(argumentsON != BF->argumentsON)return (!argumentsON && BF->argumentsON);
+	if(argumentsNames.size() != BF->argumentsNames.size())return argumentsNames.size() < BF->argumentsNames.size();
+	return Body < BF->Body;
+}
 
 
 bool Base:: operator > (const Algorithm&Z) const {
@@ -778,7 +756,8 @@ bool CallFunc:: operator > (const Algorithm&Z) const {
 	if(n!=Q->n)return n>Q->n;
 	int t=params.size();
 	if(t!=Q->params.size())return t>Q->params.size();
-	for(int i=0;i<t;++i)
+	int i;
+	for(i=0;i<t;++i)
 		if(!(*params[i]==*Q->params[i]))return *params[i]>*Q->params[i];
 	return *X>*Q->X;
 }
@@ -817,7 +796,8 @@ bool AlgoSet:: operator > (const Algorithm&Z) const {
 	if(!Q)return PowerW()>Z.PowerW();
 	int t=nabor.size();
 	if(t!=Q->nabor.size())return t>Q->nabor.size();
-	for(int i=0;i<t;++i)
+	int i;
+	for(i=0;i<t;++i)
 		if(!(*nabor[i]==*Q->nabor[i]))return *nabor[i]>*Q->nabor[i];
 	return 0;
 }
@@ -962,7 +942,8 @@ bool CallFunc:: operator < (const Algorithm&Z) const {
 	if(n!=Q->n)return n<Q->n;
 	int t=params.size();
 	if(t!=Q->params.size())return t<Q->params.size();
-	for(int i=0;i<t;++i)
+	int i;
+	for(i=0;i<t;++i)
 		if(!(*params[i]==*Q->params[i]))return *params[i]<*Q->params[i];
 	return *X<*Q->X;
 }
@@ -1001,7 +982,8 @@ bool AlgoSet:: operator < (const Algorithm&Z) const {
 	if(!Q)return PowerW()<Z.PowerW();
 	int t=nabor.size();
 	if(t!=Q->nabor.size())return t<Q->nabor.size();
-	for(int i=0;i<t;++i)
+	int i;
+	for(i=0;i<t;++i)
 		if(!(*nabor[i]==*Q->nabor[i]))return *nabor[i]<*Q->nabor[i];
 	return 0;
 }
@@ -1118,5 +1100,7 @@ IF
 WHILE
 FOR
 */
+
+
 
 // analysis.cpp	:-|

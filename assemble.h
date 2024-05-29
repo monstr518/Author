@@ -23,8 +23,8 @@
 //--------------------------------------------------------------------------------------------------
 class oneterm{
 public:
-	static const char*m[];
-	const char*c;
+	static char*m[];
+	char*c;
 	int nfunc;
 	Algorithm*A;
 	string term;
@@ -34,8 +34,8 @@ public:
 	oneterm(const oneterm&);
 	oneterm& operator = (const oneterm&);
 
-	static oneterm getTerm(const char*&,Assemble*);
-	static const char* getSTerm(const char*&s);
+	static oneterm getTerm(char*&,Assemble*);
+	static char* getSTerm(char*&s);
 };
 
 
@@ -44,7 +44,7 @@ typedef list<oneterm> L_OT;
 class Type{
 public:
 	string name;
-	int n;
+	int n; // ****
 	bool isAmpersent,isConst;
 
 	Type();
@@ -58,7 +58,7 @@ public:
 	string toString();
 	bool isSET();
 	CVARIANT Analysis();
-	void synthesis(M_CVARIANT*);
+	void synthesis(M_SV*);
 };
 
 typedef vector<Type> V_TIP;
@@ -93,6 +93,33 @@ public:
 	virtual void getNames(V_S*,int)=0;
 	int PowerW() const;
 };
+
+
+
+class BaseFunction :public Algorithm{
+public:
+	bool argumentsON;
+	V_S argumentsNames;
+	Algorithm*Body;
+
+	BaseFunction();
+	~BaseFunction();
+
+	string toString();
+	Algorithm* copy();
+	void getNames(V_S*,int);
+	void initUP(Algorithm*);
+
+	int ZapuskTree(I*,MAIN*,CVARIANT*&);
+
+	bool operator == (const Algorithm&) const;
+	bool operator > (const Algorithm&) const;
+	bool operator < (const Algorithm&) const;
+
+	int getSub(V_I*,int,Algorithm**&);
+	int Power(int n) const;
+};
+
 
 
 class SubBase{
@@ -132,8 +159,9 @@ public:
 
 
 class Base2 :public SubBase,public Algorithm{
+	bool controlSwapConstruction(I*,MAIN*,CVARIANT*,int);
 public:
-	static const char*m[];
+	static char*m[];
 	Algorithm*A,*B;
 	int n;//operator
 
@@ -193,7 +221,7 @@ public:
 
 class Prefix :public SubBase,public Algorithm{
 public:
-	static const char*m[];
+	static char*m[];
 	int n;//m[n]==0 - Algorithm
 	Algorithm*X;
 
@@ -225,7 +253,7 @@ public:
 
 class Sufix :public Algorithm{
 public:
-	static const char*m[];
+	static char*m[];
 	int n;
 	Algorithm*X;
 
@@ -255,13 +283,12 @@ public:
 
 class CallFunc :public Sufix{
 	void Help(V_CVARIANT&VCV,CVARIANT*&V);
-	void trace(MAIN*M,V_CVARIANT&VCV,bool);
+	void trace(MAIN*M,V_CVARIANT&VCV,char sposob);
 	void Sleeep(V_CVARIANT&VCV,bool isSleep);
 	void implode(V_CVARIANT&VCV,CVARIANT*&V);
 	void split(V_CVARIANT&VCV,CVARIANT*&V);
 	void size(V_CVARIANT&VCV,CVARIANT*&V);
 	void outAllMemory(I*,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M);
-	void in_array(V_CVARIANT&VCV,CVARIANT*&V);
 	void rozpad(I*,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M);
 	void outAllMTree(I*,CVARIANT*&V,MAIN*M);
 	void include(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M);
@@ -275,14 +302,15 @@ class CallFunc :public Sufix{
 	void getThisFunctionName(I*,CVARIANT*&V,MAIN*M);
 
 	void define(I*,V_CVARIANT&VCV,MAIN*M,CVARIANT*&V);
+
 	void LoadDLL(V_CVARIANT&VCV,MAIN*M);
 	void unLoadDLL(V_CVARIANT&VCV,MAIN*M);
-	void SendDLL(V_CVARIANT&VCV,MAIN*M);
-	void RecvDLL(string,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M);
+	void RunDLL(V_CVARIANT&VCV, CVARIANT*&V, MAIN*M);
 	void getNamesAllDll(CVARIANT*&V,MAIN*M);
+
 	void echo(V_CVARIANT&VCV,MAIN*M);
 	void rand(V_CVARIANT&,CVARIANT*&V);
-	void typeofV(V_CVARIANT&VCV,CVARIANT*&V);
+	void typeof(V_CVARIANT&VCV,CVARIANT*&V);
 	void getValueInLaver(I*,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M);
 	void setValueInLaver(I*,V_CVARIANT&VCV,MAIN*M);
 	void getThis(I*,CVARIANT*&V,MAIN*M,int);
@@ -306,16 +334,22 @@ class CallFunc :public Sufix{
 	void Spirit(I*,V_CVARIANT&VCV,MAIN*M);
 	void Match(V_CVARIANT&VCV,MAIN*M,CVARIANT*&V);
 	void getThisModule(MAIN*M,CVARIANT*&V);
+	void FileAccess(string&,V_CVARIANT&VCV,CVARIANT*&V);
+	void AJAX(V_CVARIANT&VCV,CVARIANT*&V);
+	void JSON(V_CVARIANT&VCV,CVARIANT*&V);
+	void Server(MAIN*M,V_CVARIANT&VCV,CVARIANT*&V);
 	
 
-	void interval(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
+	void forchar(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
+	void forinterval(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
 	void forstring(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
+	void forpointer(I*Pset,CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV,MAIN*M);
 	void forvector(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
 	void forset(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
 	void formap(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
 	void forfunction(I*,CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV,MAIN*);
 	void forprogram(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
-	void forgraf(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
+	void forgraf(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV,MAIN*);
 	void fordigit(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV);
 	void formodule(CVARIANT*thisVal,string&name,CVARIANT*&V,V_CVARIANT&VCV,MAIN*);
 public:
@@ -348,6 +382,7 @@ public:
 
 
 class AccesMasiv :public Sufix{
+	bool subAccessOne(MAIN*M,Laver*L,I*Pset,CVARIANT*&CV,CVARIANT*&S,CVARIANT*&V,int&v,int a);
 public:
 	Algorithm*P;//parametr
 	//n: 3-[] 4-{}
@@ -554,7 +589,7 @@ public:
 //--------------------------------------------------------------------------------------------------
 class SpecSumbol :public Algorithm{
 public:
-	static const char*m[];
+	static char*m[];
 	int n;
 
 	virtual ~SpecSumbol();
@@ -666,6 +701,7 @@ public:
 //--------------------------------------------------------------------------------------------------
 class FOR :public Algorithm{
 public:
+	//X-условие
 	Algorithm*X,*B;
 	Algorithm*P;// for(;X;P)B;
 
@@ -719,27 +755,27 @@ public:
 	Assemble(string&,MAIN*,const char*);
 	~Assemble();
 
-	void Readterms(const char*&s,L_OT&lot);
-	Algorithm* Razbor(const char*&,int); //1-; 2-,; 0-(_,)
+	void Readterms(char*&s,L_OT&lot);
+	Algorithm* Razbor(char*&,int); //1-; 2-,; 0-(_,)
 	Algorithm* gather(L_OT&,L_OT::iterator&);
-	Algorithm* getONE(const char*&,int&er,Sequence*S=NULL);
-	Sequence* getNabor(const char*&,int&er); // {code;}
-	Label* getLabel(const char*&);
-	int probaVarRead(const char*&,L_AL&);
-	void probaVarReadSub(const char*&,Type&,string&);
-	SpecSumbol*getSpecSumbol(const char*&,int&er);
-	IF* getIF(const char*&,int&er);
-	WHILE* getWHILE(const char*&,int&er);
-	Algorithm* getFOR(const char*&,int&er,Sequence*);
+	Algorithm* getONE(char*&,int&er,Sequence*S=NULL);
+	Sequence* getNabor(char*&,int&er); // {code;}
+	Label* getLabel(char*&);
+	int probaVarRead(char*&,L_AL&);
+	void probaVarReadSub(char*&,Type&,string&);
+	SpecSumbol*getSpecSumbol(char*&,int&er);
+	IF* getIF(char*&,int&er);
+	WHILE* getWHILE(char*&,int&er);
+	Algorithm* getFOR(char*&,int&er,Sequence*);
 
-	int getSpisokArgs(V_TIP&,V_S&,V_AL&,const char*&);
-	string getRowNAMES(const char*&);//::A::B
-	Function* getFunction(const char*&,int&er,File*);
-	CLASS* getClass(const char*&,int&er,File*ff,CLASS*Space=NULL);
+	int getSpisokArgs(V_TIP&,V_S&,V_AL&,char*&);
+	string getRowNAMES(char*&);//::A::B
+	Function* getFunction(char*&,int&er,File*);
+	CLASS* getClass(char*&,int&er,File*ff,CLASS*Space=NULL);
 
-	Sxema* getSxema(const char*&);
+	Sxema* getSxema(char*&);
 
-	int Load(const char*,bool);
+	int Load(const char*,char*,bool);
 
 	static Algorithm* getComand(MAIN*,string);
 };

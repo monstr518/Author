@@ -100,8 +100,12 @@ int FOR::ReplaceName(const string*A,const string*B){
 
 
 //--------------------------------------------------------------------------------------------------
+void BaseFunction::getNames(V_S*,int){}
+
 void Base::getNames(V_S*S,int r){
-	if(!type)if((r&1)||((bool)(r&2)==(bool)(r&4)))S->push_back(text);
+	if(!type)
+	if((r&1)||((bool)(r&2)==(bool)(r&4)))
+	if(text!="true"&&text!="false")S->push_back(text);
 }
 
 void Base2::getNames(V_S*S,int r){

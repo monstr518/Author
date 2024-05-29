@@ -1,9 +1,16 @@
 //	main.h
 
-#include <iostream>
-#include <sys/time.h>
-#include <sys/stat.h>
-#include <string.h>
+#pragma warning( disable:4786)
+#pragma warning( disable:4005)
+#pragma warning( default:4355)
+
+//add WSOCK32.LIB in Progect\Setings...\Link
+#include "winsock.h"
+
+#include <windows.h>
+#include <iostream.h>
+#include <time.h>
+//#include <ctype.h>
 #include <math.h>
 #include <string>
 #include <list>
@@ -11,7 +18,8 @@
 #include <map>
 #include <set>
 #include <algorithm>
-#include <unistd.h>
+#include <direct.h>
+
 
 //--------------------------------------------------------------------------------------------------
 
@@ -38,5 +46,7 @@ using namespace std;
 
 //--------------------------------------------------------------------------------------------------
 
+bool Ajax(string Host_name,int port,string method,string heads,string body,string& Response);
+V_pCVARIANT::iterator find_pointer(V_pCVARIANT::iterator A,const V_pCVARIANT::iterator B,const CVARIANT&V);
 
 //	main.h	:-|

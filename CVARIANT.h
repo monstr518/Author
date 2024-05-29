@@ -1,16 +1,15 @@
 //processor.h
 
 #ifdef DEF_PCONS_INCLUDE
+	//#include <stdarg.h>
 	#include<deque>
 	#include<list>
 #endif
 
 
 #ifdef DEF_PCONS_CLASS
-	class Methods;
 	class CVARIANT;
 	class CInterval;
-	class POS;
 	class CModule;
 #endif
 
@@ -19,13 +18,13 @@
 
 #ifdef DEF_PCONS_TYPES
 	typedef vector<string>		Vstr;
-	typedef deque<int>			Dint; 
+	typedef deque<int>			Dint; // двосторонн€ черга
 	typedef vector<CVARIANT>		V_CVARIANT;
 	typedef vector<CVARIANT*>		V_pCVARIANT;
-	typedef set<CVARIANT>			S_CVARIANT;
-	typedef deque<CVARIANT>			deque_CVARIANT;
-	typedef map<CVARIANT,CVARIANT>	M_CVARIANT;
-	typedef map<string,CVARIANT>	M_SV;
+	typedef set<CVARIANT>			S_CVARIANT;		// ун≥кальна множина
+	typedef deque<CVARIANT>			deque_CVARIANT; // двосторонн€ черга
+	//typedef map<CVARIANT,CVARIANT>	M_CVARIANT;		// таблиц€
+	typedef map<string,CVARIANT>	M_SV; // јссоциативна€ таблица
 #endif
 
 
@@ -37,10 +36,10 @@
 class CInterval{
 public:
 	double A,B;
-	bool a,b;
+	char a,b;
 
 	CInterval();
-	CInterval(bool,double,double,bool);
+	CInterval(int,double,double,int);
 	CInterval(const CInterval&);
 
 	CInterval& operator = (const CInterval&);
@@ -96,33 +95,32 @@ public:
 class CVARIANT{
 	void wplus(bool);//1++ 0--
 public:
-	int Ntype;
+	char Ntype;
 	union t_DATA{
 		void*			voidVal;
+		bool			boolVal;
 		char			bVal;
 		short			iVal;
 		unsigned short	uiVal;
+		int				intVal;
 		long			lVal;
 		unsigned long	ulVal;
 		float			fltVal;
-		double			dblVal;
-		bool			boolVal;
-		int				intVal;
+		double*			dblVal;
 		string*			ps;
-		S_CVARIANT*		setVal;
-		deque_CVARIANT*	dequeVal;
-		V_CVARIANT*		vectorVal;//vector CVARIANT
-		M_CVARIANT*		mapVal;
+		S_CVARIANT*		setVal;  // ун≥кальна множина
+		deque_CVARIANT*	dequeVal;// двосторонн€ черга
+		V_pCVARIANT*	vectorVal;//vector CVARIANT*
+		M_SV*			mapVal;  // таблиц€
 		CInterval*		intervalVal;
 		CFunction*		functionVal;
 		Algorithm*		programVal;
 		UGraf*			grafVal;
 		Digits*			digitVal;
 		CModule*		moduleVal;
-		}DATA;
-
-	static const char*name[];
-
+		} DATA;
+	const static char*name[];
+	//static char*Quantums[];
 	CVARIANT();
 	CVARIANT(const CVARIANT&);
 	CVARIANT& operator = (const CVARIANT&);
@@ -149,17 +147,17 @@ public:
 	static int getSizeType(const char*);
 	void INVERT(const char*);
 	void TransformType(const char*);
-	void TransformCollection(const char*);
-	static bool sBelongs(const char*s,const char**);
+	static bool sBelongs(const char*s,char**);
 	CVARIANT*copy();
 
-	//
+	//преобразует любой тип в string
 	string getString();
 
-	//double
+	//преобразует любой тип в double
 	double getDouble();
 
 	//static int getQuantum(string);
+	int getSizeOf() const;
 };
 
 #endif

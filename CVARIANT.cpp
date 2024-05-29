@@ -3,7 +3,7 @@
 
 //--------------------------------------------------------------------------------------------------
 CInterval::CInterval(){A=B=a=b=0;}
-CInterval::CInterval(bool aa,double AA,double BB,bool bb){A=AA;B=BB;a=aa;b=bb;}
+CInterval::CInterval(int aa,double AA,double BB,int bb){A=AA;B=BB;a=aa;b=bb;}
 
 CInterval::CInterval(const CInterval&t){*this=t;}
 
@@ -29,13 +29,18 @@ bool CInterval::operator <  (const CInterval&t) const {return B<t.A;}
 CInterval::operator string(){
 	control();
 	string s;
-	s+=a?"[":"(";
+	bool is8;
+	s+=(a==1)?"[":"(";
 	int t=A;
+	is8 = ((a&2)!=0);
+	if(is8)s+="#"; else
 	if(A==(double)t)s+=SCANER::toString(t);else s+=SCANER::toString(A);
 	s+=";";
 	t=B;
+	is8 = ((b&2)!=0);
+	if(is8)s+="#"; else
 	if(B==(double)t)s+=SCANER::toString(t);else s+=SCANER::toString(B);
-	s+=b?"]":")";
+	s+=(b==1)?"]":")";
 	return s;
 }
 
@@ -43,11 +48,12 @@ CInterval::operator string(){
 void CInterval::toString(string&s){s=(string)*this;}
 
 void CInterval::control(){
+	if((a&2) || (b&2))return;
 	if(A<=B)return;
 	double D=A;
 	A=B;
 	B=D;
-	bool d=a;
+	bool d = (a!=0);
 	a=b;
 	b=d;
 }
@@ -133,15 +139,11 @@ bool CInterval::operator |=  (const CInterval&t){
 
 
 //--------------------------------------------------------------------------------------------------
-CFunction::CFunction(Function*f){
-	F=f;
-	isOriginal=0;
-}
+CFunction::CFunction(Function*f){F=f;isOriginal=0;}
 
 CFunction::~CFunction(){
 	if(!isOriginal)if(F)delete F;
 }
-
 
 CFunction::CFunction(const CFunction&t){
 	F=NULL;
@@ -204,14 +206,25 @@ bool CModule:: operator <  (const CModule&t) const {return id < t.id;}
 
 
 //--------------------------------------------------------------------------------------------------
-CVARIANT::CVARIANT(){Ntype=0;}
+CVARIANT::CVARIANT(){Ntype = 0;}
 CVARIANT::~CVARIANT(){clear();}
 void CVARIANT::clear(){
 	if(isType("string"))if(DATA.ps)delete DATA.ps;
-	#define defdel(ss,uu)	if(isType(ss))if(DATA.uu){delete DATA.uu;return;}
+	if(isType("pointer"))if(DATA.ps)delete DATA.ps;
+	#define defdel(ss,uu)	if(isType(ss))if(DATA.uu){delete DATA.uu;Ntype = 0;return;}
+	defdel("double",dblVal);
 	defdel("deque",dequeVal);
 	defdel("map",mapVal);
-	defdel("vector",vectorVal);
+	if(isType("vector")){
+		if(DATA.vectorVal){
+			V_pCVARIANT::iterator it = DATA.vectorVal->begin();
+			for(;it!=DATA.vectorVal->end();++it)
+				if(*it)delete *it;
+			delete DATA.vectorVal;
+			}
+		Ntype = 0;
+		return;
+		}
 	defdel("set",setVal);
 	defdel("interval",intervalVal);
 	defdel("function",functionVal);
@@ -219,12 +232,13 @@ void CVARIANT::clear(){
 	defdel("graph",grafVal);
 	defdel("digit",digitVal);
 	defdel("module",moduleVal);
-	Ntype=0;
+	Ntype = 0;
 }
 
 
 int CVARIANT::getN(const char*s){
-	for(int i=0;name[i];++i)
+	int i;
+	for(i=0;name[i];++i)
 		if(!strcmp(name[i],s))return i;
 	return 0;
 }
@@ -260,32 +274,18 @@ const char* CVARIANT::name[]={
 	"graph",
 	"digit",
 	"module",
-	NULL
-};
-
-/*
-char* CVARIANT::Quantums[]={
-	"Exists!",
-	"Exists",
-	"All",
-	"Infinity+",
-	"Infinity-",
-	"Infinity",
-	"min/max",
-	"max",
-	"min",
+	"pointer",
 	NULL
 };
 
 
-int CVARIANT::getQuantum(string s){
-	for(int i=0;Quantums[i];++i)if(s==Quantums[i])break;
-	return i;
-}
-*/
 
 //--------------------------------------------------------------------------------------------------
-CVARIANT::CVARIANT(const CVARIANT&t){Ntype=0;*this=t;}
+CVARIANT::CVARIANT(const CVARIANT&t){
+	Ntype = 0;
+	*this = t;
+}
+
 
 
 CVARIANT& CVARIANT::operator = (const CVARIANT&t){
@@ -293,13 +293,25 @@ CVARIANT& CVARIANT::operator = (const CVARIANT&t){
 	clear();
 	Ntype=t.Ntype;
 	DATA=t.DATA;
+	if(t.isType("double")){
+		DATA.dblVal = new double(*t.DATA.dblVal);
+		return *this;
+		}
 	#define def_copy(ss,tclass,uu)	if(t.isType(ss)) \
 			{DATA.uu=new (tclass)(*t.DATA.uu);return *this;}
 	def_copy("string",string,ps);
-	def_copy("vector",V_CVARIANT,vectorVal);
+	def_copy("pointer",string,ps);
+	if(t.isType("vector")){
+		DATA.vectorVal = new V_pCVARIANT(*t.DATA.vectorVal);
+		int i,size = DATA.vectorVal->size();
+		for(i=0;i<size;++i){
+			(*DATA.vectorVal)[i] = (*t.DATA.vectorVal)[i]->copy();
+			}
+		return *this;
+		}
 	def_copy("deque",deque_CVARIANT,dequeVal);
 	def_copy("set",S_CVARIANT,setVal);
-	def_copy("map",M_CVARIANT,mapVal);
+	def_copy("map",M_SV,mapVal);
 	def_copy("interval",CInterval,intervalVal);
 	def_copy("function",CFunction,functionVal);
 	if(t.isType("program")){
@@ -313,12 +325,27 @@ CVARIANT& CVARIANT::operator = (const CVARIANT&t){
 }
 
 
+
+
 bool CVARIANT::operator == (const CVARIANT&t) const{
 	if(Ntype!=t.Ntype)return 0;
 	if(!Ntype)return 1;
 	#define def_compare(ss,uu)	if(isType(ss))return (*DATA.uu==*t.DATA.uu);
 	def_compare("string",ps);
-	def_compare("vector",vectorVal);
+	def_compare("pointer",ps);
+	//def_compare("vector",vectorVal);
+	if(isType("vector")){
+		int i,size = DATA.vectorVal->size();
+		bool isOK = (size == t.DATA.vectorVal->size());
+		if(!isOK)return 0;
+		i = 0;
+		for(;i<size;++i){
+			isOK = (*(*DATA.vectorVal)[i] == *(*t.DATA.vectorVal)[i]);
+			if(!isOK)break;
+			}
+		return isOK;
+		}
+	def_compare("double",dblVal);
 	def_compare("deque",dequeVal);
 	def_compare("set",setVal);
 	def_compare("interval",intervalVal);
@@ -332,7 +359,6 @@ bool CVARIANT::operator == (const CVARIANT&t) const{
 	toString(s1);
 	t.toString(s2);
 	return s1==s2;
-	//return DATA.dblVal==t.DATA.dblVal;
 }
 
 
@@ -349,11 +375,27 @@ bool CVARIANT::operator >  (const CVARIANT&t) const{
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
+	//fop("double",dblVal);
+	if(isType("double"))return *DATA.dblVal>*t.DATA.dblVal;
 	#define def_compare(ss,uu)	if(isType(ss))return (*DATA.uu>*t.DATA.uu);
 	def_compare("string",ps);
+	def_compare("pointer",ps);
 	def_compare("type",ps);
-	def_compare("vector",vectorVal);
+	if(isType("vector")){
+		int size,sizet;
+		size = DATA.vectorVal->size();
+		sizet = t.DATA.vectorVal->size();
+		bool isOK = (size==sizet);
+		if(!isOK)return (size>sizet);
+		int i = 0;
+		for(;i<size;++i){
+			isOK = (*(*DATA.vectorVal)[i] == *(*t.DATA.vectorVal)[i]);
+			if(isOK)continue;
+			isOK = (*(*DATA.vectorVal)[i] > *(*t.DATA.vectorVal)[i]);
+			return isOK;
+			}
+		return false;
+		}
 	def_compare("deque",dequeVal);
 	def_compare("set",setVal);
 	def_compare("map",mapVal);
@@ -377,12 +419,29 @@ bool CVARIANT::operator <  (const CVARIANT&t) const{
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
 	fop("bool",boolVal);
+	//fop("double",dblVal);
+	if(isType("double"))return *DATA.dblVal<*t.DATA.dblVal;
 	#define def_compare(ss,uu)	if(isType(ss))return (*DATA.uu<*t.DATA.uu);
 	def_compare("string",ps);
+	def_compare("pointer",ps);
 	def_compare("type",ps);
-	def_compare("vector",vectorVal);
+	//def_compare("vector",vectorVal);
+	if(isType("vector")){
+		int size,sizet;
+		size = DATA.vectorVal->size();
+		sizet = t.DATA.vectorVal->size();
+		bool isOK = (size==sizet);
+		if(!isOK)return (size<sizet);
+		int i = 0;
+		for(;i<size;++i){
+			isOK = (*(*DATA.vectorVal)[i] == *(*t.DATA.vectorVal)[i]);
+			if(isOK)continue;
+			isOK = (*(*DATA.vectorVal)[i] < *(*t.DATA.vectorVal)[i]);
+			return isOK;
+			}
+		return false;
+		}
 	def_compare("deque",dequeVal);
 	def_compare("set",setVal);
 	def_compare("map",mapVal);
@@ -411,15 +470,22 @@ void CVARIANT::wplus(bool plus){
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
 	fop("bool",dblVal);
 	if(isType("digit")){if(plus)++*DATA.digitVal; else --*DATA.digitVal;}
+	//fop("double",dblVal);
+	if(isType("double")){
+		if(plus)++*DATA.dblVal; else --*DATA.dblVal;
+		}
 }
+
+
 
 CVARIANT& CVARIANT::operator -- (){
 	wplus(false);
 	return *this;
 }
+
+
 
 CVARIANT& CVARIANT::operator ++ (){
 	wplus(true);
@@ -427,28 +493,40 @@ CVARIANT& CVARIANT::operator ++ (){
 }
 
 
+
 //--------------------------------------------------------------------------------------------------
 void CVARIANT::toString(string&s) const{
 	if(isType("void"))s+="#";
 	if(isType("string"))s+=SCANER::writeString(*DATA.ps);
+	if(isType("pointer"))s+=*DATA.ps;
 	char t[200]="";
 	if(isType("short"))		sprintf(t,"%d",DATA.iVal);
 	if(isType("int"))		sprintf(t,"%d",DATA.intVal);
-	if(isType("char")) sprintf(t,"%c",DATA.bVal);
+	if(isType("char"))		sprintf(t,"%c",DATA.bVal);
 	if(isType("unsigned short"))sprintf(t,"%d",DATA.uiVal);
 	if(isType("long"))		sprintf(t,"%d",DATA.lVal);
 	if(isType("unsigned long"))sprintf(t,"%u",DATA.ulVal);
 	if(isType("float"))		sprintf(t,"%0.7f",DATA.fltVal);
-	if(isType("double"))	sprintf(t,"%0.7f",DATA.dblVal);
+	if(isType("double"))	sprintf(t,"%0.7f",*DATA.dblVal);
+	if(isType("float")||isType("double")){
+		int i=0;
+		bool ok=0;
+		for(;t[i];++i)if(t[i]=='.')ok=1;
+		if(ok){
+			--i;
+			for(;i>0&&t[i]!='.';--i)if(t[i]=='0')t[i]=0;else break;
+			if(t[i]=='.')t[i]=0;
+			}
+		}
 	s+=t;
 	if(isType("bool"))		s+=DATA.boolVal?"true":"false";
 	if(!DATA.ps)return;
 	if(isType("map")){
 		s+="map";
-		M_CVARIANT::iterator it=DATA.mapVal->begin();
+		M_SV::iterator it=DATA.mapVal->begin();
 		for(;it!=DATA.mapVal->end();++it){
 			s+="[";
-			it->first.toString(s);
+			s+=it->first;
 			s+="=";
 			it->second.toString(s);
 			s+="]";
@@ -477,10 +555,10 @@ void CVARIANT::toString(string&s) const{
 		}
 	if(isType("vector")){
 		s+="vector[";
-		V_CVARIANT::iterator it=DATA.vectorVal->begin();
+		V_pCVARIANT::iterator it=DATA.vectorVal->begin();
 		for(bool fi=0;it!=DATA.vectorVal->end();++it,fi=1){
 			if(fi)s+=',';
-			it->toString(s);
+			(*it)->toString(s);
 			}
 		s+="]";
 		return;
@@ -515,8 +593,9 @@ CVARIANT* CVARIANT::copy(){
 }
 
 
-bool CVARIANT::sBelongs(const char*s,const char**m){
-	for(int i=0;m[i];++i)
+bool CVARIANT::sBelongs(const char*s,char**m){
+	int i;
+	for(i=0;m[i];++i)
 		if(!strcmp(s,m[i]))return 1;
 	return 0;
 }
@@ -530,7 +609,7 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 		*A=X;
 		return 1;
 		}
-	const char*t[]={"<<=", ">>=","%=",NULL};
+	char*t[]={"<<=", ">>=","%=",NULL};
 	if(sBelongs(c,t)){
 		int n=0;
 		if(B->isType("unsigned long"))n=B->DATA.ulVal;
@@ -598,7 +677,7 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 		return 1;
 		}
 	if(A->Ntype!=B->Ntype)return 0;
-	const char*t2[]={"|=", "&=", "^=",NULL};
+	char*t2[]={"|=", "&=", "^=",NULL};
 	if(sBelongs(c,t2)){
 		#define fop(t,uu)	if(A->isType(#t)){ \
 			t&a=A->DATA.uu,b=B->DATA.uu;\
@@ -620,7 +699,7 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 			}
 		return 0;
 		}
-	const char*tp[]={"+=", "-=", "*=", "/=",NULL};
+	char*tp[]={"+=", "-=", "*=", "/=",NULL};
 	if(!sBelongs(c,tp))return 0;
 	#define fop(ss,uu)	if(A->isType(ss)){ \
 					if(is("+="))A->DATA.uu+=B->DATA.uu;\
@@ -634,9 +713,15 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
+	//fop("double",dblVal);
+	if(A->isType("double")){
+		if(is("+="))*A->DATA.dblVal += *B->DATA.dblVal;
+		if(is("-="))*A->DATA.dblVal -= *B->DATA.dblVal;
+		if(is("*="))*A->DATA.dblVal *= *B->DATA.dblVal;
+		if(is("/="))*A->DATA.dblVal /= *B->DATA.dblVal;
+		}
 	if(A->isType("string")){
-		if(is("+="))*A->DATA.ps+=*B->DATA.ps;
+		if(is("+="))*A->DATA.ps += *B->DATA.ps;
 		}
 	if(A->isType("set")){
 		if(is("+=")){
@@ -661,13 +746,15 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 		}
 	if(A->isType("vector")){
 		if(is("+=")){
-			V_CVARIANT::iterator it=B->DATA.vectorVal->begin();
-			for(;it!=B->DATA.vectorVal->end();++it)A->DATA.vectorVal->push_back(*it);
+			V_pCVARIANT::iterator it=B->DATA.vectorVal->begin();
+			for(;it!=B->DATA.vectorVal->end();++it){
+				A->DATA.vectorVal->push_back((*it)->copy());
+				}
 			}
 		if(is("-=")){
-			V_CVARIANT::iterator jt,it=B->DATA.vectorVal->begin();
+			V_pCVARIANT::iterator jt,it=B->DATA.vectorVal->begin();
 			for(;it!=B->DATA.vectorVal->end();++it){
-				jt=find(A->DATA.vectorVal->begin(),A->DATA.vectorVal->end(),*it);
+				jt=find_pointer(A->DATA.vectorVal->begin(),A->DATA.vectorVal->end(),**it);
 				if(jt==A->DATA.vectorVal->end())continue;
 				A->DATA.vectorVal->erase(jt);
 				}
@@ -675,11 +762,11 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 		if(is("*=")){
 			CVARIANT Q;
 			Q.avtoSet("vector");
-			V_CVARIANT::iterator jt,it=B->DATA.vectorVal->begin();
+			V_pCVARIANT::iterator jt,it=B->DATA.vectorVal->begin();
 			for(;it!=B->DATA.vectorVal->end();++it){
-				jt=find(A->DATA.vectorVal->begin(),A->DATA.vectorVal->end(),*it);
+				jt=find_pointer(A->DATA.vectorVal->begin(),A->DATA.vectorVal->end(),**it);
 				if(jt==A->DATA.vectorVal->end())continue;
-				Q.DATA.vectorVal->push_back(*jt);
+				Q.DATA.vectorVal->push_back((*jt)->copy());
 				}
 			*A=Q;
 			}
@@ -692,11 +779,11 @@ bool CVARIANT::OPETATOR(CVARIANT*A,CVARIANT*B,const char*c){
 		}
 	if(A->isType("map")){
 		if(is("+=")){
-			M_CVARIANT::iterator it=B->DATA.mapVal->begin();
+			M_SV::iterator it=B->DATA.mapVal->begin();
 			for(;it!=B->DATA.mapVal->end();++it)(*A->DATA.mapVal)[it->first]=it->second;
 			}
 		if(is("-=")){
-			M_CVARIANT::iterator it=B->DATA.mapVal->begin(),jt;
+			M_SV::iterator it=B->DATA.mapVal->begin(),jt;
 			for(;it!=B->DATA.mapVal->end();++it){
 				jt=A->DATA.mapVal->find(it->first);
 				if(jt!=A->DATA.mapVal->end())A->DATA.mapVal->erase(jt);
@@ -734,7 +821,8 @@ void CVARIANT::INVERT(const char*s){
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
+	//fop("double",dblVal);
+	if(isType("double"))*DATA.dblVal = -*DATA.dblVal;
 	if(isType("digit"))DATA.digitVal->invertZnak();
 }
 
@@ -774,10 +862,12 @@ void CVARIANT::TransformType(const char*nameType){
 	fop("quantum",intVal);
 	fop("short",iVal);
 	fop("unsigned short",uiVal);
-	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
 	fop("bool",boolVal);
+	fop("char",bVal);
+	//if(isType("char"))b=n=DATA.bVal;
+	//fop("double",dblVal);
+	if(isType("double"))b = n = *DATA.dblVal;
 	if(isType("string")){
 		str=*DATA.ps;
 		sscanf(DATA.ps->c_str(),"%lf",&n);
@@ -787,8 +877,8 @@ void CVARIANT::TransformType(const char*nameType){
 		if(isType("program"))str=SCANER::trim(str);
 		}
 	if(isType("vector")){
-		V_CVARIANT::iterator it=DATA.vectorVal->begin();
-		for(;it!=DATA.vectorVal->end();++it)List.push_back(*it);
+		V_pCVARIANT::iterator it=DATA.vectorVal->begin();
+		for(;it!=DATA.vectorVal->end();++it)List.push_back(**it);
 		b=n=DATA.vectorVal->size();
 		}
 	if(isType("set")){
@@ -815,142 +905,107 @@ void CVARIANT::TransformType(const char*nameType){
 	fop("unsigned short",uiVal);
 	fop("char",bVal);
 	fop("float",fltVal);
-	fop("double",dblVal);
+	//fop("double",dblVal);
+	if(isType("double")){
+		Ntype = 0;
+		avtoSet(nameType);
+		*DATA.dblVal = n;
+		return;
+		}
 	if(isType("bool")){
 		DATA.boolVal=b;
 		return;
 		}
 	if(isType("string")){DATA.ps=new(string)(str);return;}
 	if(isType("vector")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
-		*DATA.vectorVal=List;
+		DATA.vectorVal = new (V_pCVARIANT);
+		V_CVARIANT::iterator it = List.begin();
+		for(;it!=List.end();++it)
+			DATA.vectorVal->push_back(it->copy());
 		return;
 		}
 	if(isType("set")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		DATA.setVal->insert(List.begin(),List.end());
 		return;
 		}
 	if(isType("interval")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		(*DATA.intervalVal)=CInterval(1,n,n,1);
 		return;
 		}
 	if(isType("pos")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		return;
 		}
 	if(isType("map")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		V_CVARIANT::iterator it=List.begin();
-		for(;it!=List.end();++it)(*DATA.mapVal)[*it]=CVARIANT();
+		for(;it!=List.end();++it){
+			string str;
+			it->toString(str);
+			(*DATA.mapVal)[str]=CVARIANT();
+			}
 		return;
 		}
 	if(isType("function")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		DATA.functionVal->F=new Function();
 		DATA.functionVal->F->name="noname";
 		return;
 		}
 	if(isType("program")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		return;
 		}
 	if(isType("graph")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		return;
 		}
 	if(isType("digit")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		DATA.digitVal->set(str.c_str());
 		return;
 		}
 	if(isType("module")){
-		Ntype=0;
+		Ntype = 0;
 		avtoSet(nameType);
 		DATA.moduleVal->id=n;
 		return;
 		}
-	Ntype=0;//cennot transform
+	Ntype = 0;//cennot transform
 	avtoSet("string");
 	*DATA.ps=string("cennot transform type to ")+nameType;
 }
 
 
 
-void CVARIANT::TransformCollection(const char*nameType){
-	if(isType(nameType))return;
-	if(isType("associative"))if(!strcmp(nameType,"map"))return;
-	int n=0,h=0;
-	V_CVARIANT*V;
-	S_CVARIANT::iterator i2;
-	deque_CVARIANT::iterator i3;
-	if(isType("vector")){
-		V=DATA.vectorVal;
-		n=V->size();
-		h=1;
-		}else
-	if(isType("set")){
-		S_CVARIANT*S;
-		S=DATA.setVal;
-		n=S->size();
-		i2=S->begin();
-		h=2;
-		}else
-	if(isType("deque")){
-		deque_CVARIANT*D;
-		D=DATA.dequeVal;
-		n=D->size();
-		i3=D->begin();
-		h=3;
-		}
-	if(!h)return;
-	CVARIANT*X,NEW;
-	NEW.avtoSet(nameType);
-	for(int i=0;i<n;++i){
-		if(h==1)X=&(*V)[i]; else
-		if(h==2){
-			if(i)++i2;
-			X=const_cast<CVARIANT*>(&*i2);
-			} else
-		if(h==3){
-			if(i)++i3;
-			X=const_cast<CVARIANT*>(&*i3);
-			}
-		if(!strcmp(nameType,"vector"))NEW.DATA.vectorVal->push_back(*X); else
-		if(!strcmp(nameType,"set"))NEW.DATA.setVal->insert(*X); else
-			NEW.DATA.dequeVal->push_back(*X);
-		}
-	clear();
-	Ntype=NEW.Ntype;
-	DATA=NEW.DATA;
-	NEW.DATA.ps=NULL;
-}
 
-
-
-
+//выделение памяти для непремитивных типов.
 void CVARIANT::avtoSet(string&type){
 	clear();
-	DATA.ps=NULL;
-	Ntype=getN(type.c_str());
+	DATA.ps = NULL;
+	Ntype = getN(type.c_str());
+	if(isType("double"))DATA.dblVal = new(double);
 	#define def_co(ss,tt,uu)	\
 		if(isType(ss)) DATA.uu=new(tt);
 	def_co("string",string,ps);
+	def_co("pointer",string,ps);
 	//def_co("type",string,ps);
-	def_co("vector",V_CVARIANT,vectorVal);
+	def_co("vector",V_pCVARIANT,vectorVal);
 	def_co("deque",deque_CVARIANT,dequeVal);
 	def_co("set",S_CVARIANT,setVal);
-	def_co("map",M_CVARIANT,mapVal);
+	def_co("map",M_SV,mapVal);
 	def_co("interval",CInterval,intervalVal);
 	def_co("function",CFunction,functionVal);
 	if(isType("program")){
@@ -966,7 +1021,7 @@ void CVARIANT::avtoSet(string&type){
 }
 
 
-
+//выделение памяти для непремитивных типов.
 void CVARIANT::avtoSet(const char*type){
 	string t(type);
 	avtoSet(t);
@@ -985,17 +1040,19 @@ int CVARIANT::getSizeType(const char*s){
 	fop(unsigned short);
 	fop(char);
 	fop(float);
-	fop(double);
 	fop(bool);
+	//fop(double);
+	if(!strcmp(s,"double"))return sizeof(double);
 	return sizeof(void*);
 }
 
 
 
 
-// string
+//преобразует любой тип в string
 string CVARIANT::getString(){
 	if(isType("string"))return *DATA.ps;
+	if(isType("pointer"))return *DATA.ps;
 	CVARIANT X(*this);
 	X.TransformType("string");
 	return *X.DATA.ps;
@@ -1003,13 +1060,60 @@ string CVARIANT::getString(){
 
 
 
-// double
+//преобразует любой тип в double
 double CVARIANT::getDouble(){
-	if(isType("double"))return DATA.dblVal;
+	if(isType("double"))return *DATA.dblVal;
 	CVARIANT X(*this);
 	X.TransformType("double");
-	return X.DATA.dblVal;
+	return *X.DATA.dblVal;
 }
+
+
+
+
+
+int CVARIANT::getSizeOf() const {
+	int size = sizeof(CVARIANT::DATA);
+	if(isType("string") || isType("pointer"))size += DATA.ps->size();
+	if(isType("set")){
+		S_CVARIANT::iterator it = DATA.setVal->begin();
+		for(;it!=DATA.setVal->end();++it)size += it->getSizeOf();
+		}
+	// deque_CVARIANT*	dequeVal; - Never used
+	if(isType("vector")){
+		int i,vs = DATA.vectorVal->size();
+		size += vs;
+		for(i=0;i<vs;++i)size += (*DATA.vectorVal)[i]->getSizeOf();
+		}
+	if(isType("map")){
+		M_SV::iterator it = DATA.mapVal->begin();
+		for(;it!=DATA.mapVal->end();++it){
+			size += it->first.size();
+			size += it->second.getSizeOf();;
+			}
+		}
+	if(isType("interval")){
+		size += sizeof(CInterval);
+		}
+	if(isType("function")){
+		size += 1000;
+		}
+	if(isType("program")){
+		size += DATA.programVal->Power(0)*10;
+		}
+	if(isType("graph")){
+		size += DATA.grafVal->getSizeOf();
+		}
+	if(isType("digit")){
+		size += DATA.digitVal->getSizeOf();
+		}
+	if(isType("module")){
+		size += sizeof(CModule);
+		}
+	return size;
+}
+
+
 
 
 

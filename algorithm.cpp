@@ -23,7 +23,7 @@ oneterm& oneterm:: operator = (const oneterm&t){
 }
 
 
-const char* oneterm::m[]={
+char* oneterm::m[]={
 	">>=",
 	"<<=",
 	">>",
@@ -41,12 +41,14 @@ const char* oneterm::m[]={
 	"|=",
 	"&=",
 	"^=",
+	//"#=",
 	"++",
 	"--",
 	"<=",
 	">=",
 	"%=",
 	"^^",
+	//"!!",
 	"??",
 	"=",
 	"&",
@@ -77,19 +79,64 @@ const char* oneterm::m[]={
 
 
 
-oneterm oneterm::getTerm(const char*&s,Assemble*AS){
+oneterm oneterm::getTerm(char*&s,Assemble*AS){
 	string t;
-	const char*s2=s;
+	char*s2=s;
 	int nfunc=0;
 	Algorithm*A=NULL;
-	if(SCANER::scanSlovo("Algorithm",s)){
-		int er=0;
-		A=AS->getNabor(s,er);
-		if(A){
+	int isFunction = SCANER::scanSlovo("function",s);
+	if(isFunction || *s=='('){
+		SCANER::noProbel(s);
+		int er=0,x;
+		string name;
+		BaseFunction*BF=new BaseFunction;
+		if(*s=='(')++s; else er=1;
+		if(!er){
+			SCANER::noProbel(s);
+			while(*s!=')' && *s){
+				x=0;
+				name=SCANER::readName(s);
+				if(name.empty()){
+					x=SCANER::scanSlovo("...",s);
+					if(x)BF->argumentsON=1;
+					} else BF->argumentsNames.push_back(name);
+				if(name.empty() && !x)break;
+				SCANER::noProbel(s);
+				if(*s==')')break;
+				if(*s!=',')break;
+				++s;
+				SCANER::noProbel(s);
+				}
+			if(*s!=')')er=1;
+			++s;
+			}
+		if(!er){
+			SCANER::noProbel(s);
+			if(!isFunction){
+				if(!SCANER::scanSlovo("=>",s))er=1;
+				SCANER::noProbel(s);
+				}
+			}
+		if(!er){
+			A=AS->getNabor(s,er);
+			if(A){
+				Sequence*S=dynamic_cast<Sequence*>(A);
+				if(!S){
+					S=new Sequence;
+					S->nabor.push_back(A);
+					A=S;
+					}
+				BF->Body=A;
+				}
+			}
+		if(er){
+			s=s2;
+			delete BF;
+			} else {
 			nfunc=6;
 			t="#";
-			}else s=s2;
-		if(er)s=s2;
+			A=BF;
+			}
 		}
 	if(!nfunc)t=SCANER::readName(s);
 	if(t.empty()){
@@ -110,7 +157,7 @@ oneterm oneterm::getTerm(const char*&s,Assemble*AS){
 	if(t.empty()){
 		s=s2;
 		nfunc=4;
-		const char*r=getSTerm(s);
+		char*r=getSTerm(s);
 		if(r)t=r;
 		}
 	oneterm r;
@@ -122,9 +169,9 @@ oneterm oneterm::getTerm(const char*&s,Assemble*AS){
 }
 
 
-const char* oneterm::getSTerm(const char*&s){
-	int i=0;
-	for(;m[i];++i)
+char* oneterm::getSTerm(char*&s){
+	int i;
+	for(i=0;m[i];++i)
 		if(SCANER::scanSlovo(m[i],s))break;
 	return m[i];
 }
@@ -163,7 +210,8 @@ string Type::toString(){
 	string s;
 	if(isConst)s="const ";
 	s+=name;
-	for(int i=0;i<n;++i)s+="*";
+	int i;
+	for(i=0;i<n;++i)s+="*";
 	if(isAmpersent)s+="&";
 	return s;
 }
@@ -219,7 +267,7 @@ bool Algorithm::isProsto(){
 }
 
 bool Algorithm::isIF(){
-	return dynamic_cast<IF*>(this);
+	return dynamic_cast<IF*>(this) != NULL;
 }
 
 string Algorithm::getAdress(){return "";}
@@ -277,7 +325,7 @@ bool Base:: operator == (const Algorithm&t) const{
 }
 
 //--------------------------------------------------------------------------------------------------
-const char* Prefix::m[]={
+char* Prefix::m[]={
 	"new",
 	"!!",
 	"::",
@@ -336,7 +384,7 @@ bool Prefix:: operator == (const Algorithm&t) const{
 
 
 //--------------------------------------------------------------------------------------------------
-const char* Sufix::m[]={
+char* Sufix::m[]={
 	"++",
 	"--",
 	"(",
@@ -387,14 +435,16 @@ bool Sufix:: operator == (const Algorithm&t) const{
 CallFunc::CallFunc():Sufix(){}
 
 CallFunc::~CallFunc(){
-	for(int i=0;i<params.size();++i)delete params[i];
+	int i;
+	for(i=0;i<params.size();++i)delete params[i];
 }
 
 
 string CallFunc::toString(){
 	string s=X->toString();
 	s+="(";
-	for(int i=0;i<params.size();++i){
+	int i;
+	for(i=0;i<params.size();++i){
 		if(i)s+=",";
 		s+=params[i]->toString();
 		}
@@ -406,7 +456,8 @@ string CallFunc::toString(){
 Algorithm* CallFunc::copy(){
 	CallFunc*x=new(CallFunc);
 	x->n=n;
-	for(int i=0;i<params.size();++i)
+	int i;
+	for(i=0;i<params.size();++i)
 		x->params.push_back(params[i]->copy());
 	x->X=X->copy();
 	return x;
@@ -418,7 +469,8 @@ bool CallFunc:: operator == (const Algorithm&t) const{
 	if(!Y)return 0;
 	if(params.size()!=Y->params.size())return 0;
 	if(!(*X==*Y->X))return 0;
-	for(int i=0;i<params.size();++i)if(!(*params[i]==*Y->params[i]))return 0;
+	int i;
+	for(i=0;i<params.size();++i)if(!(*params[i]==*Y->params[i]))return 0;
 	return 1;
 }
 
@@ -498,8 +550,61 @@ bool Cast:: operator == (const Algorithm&t) const{
 }
 
 
+
+
 //--------------------------------------------------------------------------------------------------
-const char* Base2::m[]={
+BaseFunction::BaseFunction(){
+	argumentsON=0;
+	Body=NULL;
+}
+
+BaseFunction::~BaseFunction(){
+	if(Body)delete Body;
+}
+
+
+
+string BaseFunction::toString(){
+	string s = "function";
+	string t;
+	int i;
+	for(i=0;i<argumentsNames.size();++i){
+		if(i)t+=",";
+		t+=argumentsNames[i];
+		}
+	if(argumentsON){
+		if(i)t+=",";
+		t+="...";
+		}
+	s+="("+t+")";
+	if(!Body)return s+"{}";
+	s+=Body->toString();
+	return s;
+}
+
+
+Algorithm* BaseFunction::copy(){
+	BaseFunction*R=new BaseFunction;
+	R->argumentsNames=argumentsNames;
+	R->argumentsON=argumentsON;
+	if(Body)R->Body=Body->copy();
+	return R;
+}
+
+
+bool BaseFunction:: operator == (const Algorithm&t) const {
+	const BaseFunction*BF=dynamic_cast<const BaseFunction*>(&t);
+	if(!BF)return 0;
+	if(BF->argumentsON!=argumentsON)return 0;
+	if(BF->argumentsNames!=argumentsNames)return 0;
+	return BF->Body == Body;
+}
+
+
+
+
+//--------------------------------------------------------------------------------------------------
+char* Base2::m[]={
 	"+=", "-=",	"*=", "/=", "%=", "<<=", ">>=", "&=", "|=", "^=", "=", //14 R
 	"?", //13 R
 	"||", // 12 R
@@ -552,8 +657,9 @@ int Base2::getPriorited(){
 
 string Base2::toString(){
 	string s=A->toString();
-	s+=m[n];
-	s+=B->toString();
+	string op=m[n];
+	string R=B->toString();
+	if((op=="-" && R[0]=='-') || (op=="+" && R[0]=='+'))s+=op+" "+R; else s+=op+R;
 	if(needForScobki(this))s="("+s+")";
 	return s;
 }
@@ -626,6 +732,7 @@ string Interval::toString(){
 	s+=";";
 	s+=B->toString();
 	s+=b?"]":")";
+	if(dynamic_cast<Cast*>(up))s = "("+s+")";
 	return s;
 }
 
@@ -651,13 +758,15 @@ bool Interval:: operator == (const Algorithm&t) const{
 
 //--------------------------------------------------------------------------------------------------
 AlgoSet::~AlgoSet(){
-	for(int i=0;i<nabor.size();++i)delete nabor[i];
+	int i;
+	for(i=0;i<nabor.size();++i)delete nabor[i];
 }
 
 
 string AlgoSet::toString(){
 	string s,sub;
-	for(int i=0;i<nabor.size();++i){
+	int i;
+	for(i=0;i<nabor.size();++i){
 		if(i)sub+=",";
 		if(sub.size()>=50){
 			s+=sub+"\n";
@@ -676,7 +785,8 @@ string AlgoSet::toString(){
 
 Algorithm* AlgoSet::copy(){
 	AlgoSet*x=new(AlgoSet);
-	for(int i=0;i<nabor.size();++i)
+	int i;
+	for(i=0;i<nabor.size();++i)
 		x->nabor.push_back(nabor[i]->copy());
 	return x;
 }
@@ -686,7 +796,8 @@ bool AlgoSet:: operator == (const Algorithm&t) const{
 	const AlgoSet*Y=dynamic_cast<const AlgoSet*>(&t);
 	if(!Y)return 0;
 	if(nabor.size()!=Y->nabor.size())return 0;
-	for(int i=0;i<nabor.size();++i)if(!(*nabor[i]==*Y->nabor[i]))return 0;
+	int i;
+	for(i=0;i<nabor.size();++i)if(!(*nabor[i]==*Y->nabor[i]))return 0;
 	return 1;
 }
 
@@ -768,6 +879,7 @@ Sequence::~Sequence(){
 
 
 string Sequence::toString(){
+	if(nabor.empty())return "{}";
 	string s="{\n";
 	L_AL::iterator it=nabor.begin();
 	for(;it!=nabor.end();++it){
@@ -812,14 +924,15 @@ CreateVar::CreateVar(){Init=NULL;isMassiv=isInit=0;}
 
 CreateVar::~CreateVar(){
 	if(Init)delete Init;
-	for(int i=0;i<params.size();++i)
+	int i;
+	for(i=0;i<params.size();++i)
 		if(params[i])delete params[i];
 }
 
 
 string CreateVar::toString(){
 	string s=tip.toString();
-	if(s.empty())return s;//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+	if(s.empty())return s;//зарезервировано для инициализации свойств обекта
 	s+=" ";
 	s+=toString2();
 	return s;
@@ -830,7 +943,8 @@ string CreateVar::toString(){
 string CreateVar::toString2(){
 	string s=name;
 	if(isMassiv){
-		for(int i=0;i<params.size();++i){
+		int i;
+		for(i=0;i<params.size();++i){
 			s+="[";
 			if(params[i])s+=params[i]->toString();
 			s+="]";
@@ -847,7 +961,8 @@ string CreateVar::toString2(){
 		s+=Init->toString();
 		}else{
 		s+="(";
-		for(int i=0;i<params.size();++i){
+		int i;
+		for(i=0;i<params.size();++i){
 			if(i)s+=",";
 			s+=params[i]->toString();
 			}
@@ -865,7 +980,8 @@ Algorithm* CreateVar::copy(){
 	x->name=name;
 	if(Init)x->Init=Init->copy();
 	x->tip=tip;
-	for(int i=0;i<params.size();++i)
+	int i;
+	for(i=0;i<params.size();++i)
 		x->params.push_back(params[i]?params[i]->copy():NULL);
 	return x;
 }
@@ -881,14 +997,15 @@ bool CreateVar:: operator == (const Algorithm&t) const{
 	if(Init&&Y->Init)if(!(*Init==*Y->Init))return 0;
 	if(!Init&&Y->Init || Init&&!Y->Init)return 0;
 	if(params.size()!=Y->params.size())return 0;
-	for(int i=0;i<params.size();++i)if(!(*params[i]==*Y->params[i]))return 0;
+	int i;
+	for(i=0;i<params.size();++i)if(!(*params[i]==*Y->params[i]))return 0;
 	return 1;
 }
 
 
 
 //--------------------------------------------------------------------------------------------------
-const char* SpecSumbol::m[]={
+char* SpecSumbol::m[]={
 	"return",
 	"delete",
 	"goto",
@@ -973,7 +1090,8 @@ string IF::toString(){
 		string u;
 		u=A->toString();
 		IF* ii=dynamic_cast<IF*>(A);
-		if(!dynamic_cast<Sequence*>(A) && !ii)if(u[u.size()-1]!=';')u+=";";
+		WHILE*W=dynamic_cast<WHILE*>(A);
+		if(!dynamic_cast<Sequence*>(A) && !ii && !W)if(u[u.size()-1]!=';')u+=";";
 		if(!ii){
 			Algorithm*H=NULL;
 			WHILE*W=dynamic_cast<WHILE*>(A);
@@ -1152,7 +1270,7 @@ Algorithm* Assemble::getComand(MAIN*M,string s){
 	Sequence*S=NULL;
 		{
 		Assemble A(error,M,"");
-		const char*c=s.c_str();
+		char*c=const_cast<char*>(s.c_str());
 		S=A.getNabor(c,er);
 		}
 	if(er){
@@ -1165,7 +1283,7 @@ Algorithm* Assemble::getComand(MAIN*M,string s){
 }
 
 
-void Assemble::Readterms(const char*&s,L_OT&lot){
+void Assemble::Readterms(char*&s,L_OT&lot){
 	V_I vskobkax;
 	int pos=-1;
 	string lifo;
@@ -1201,9 +1319,17 @@ void Assemble::Readterms(const char*&s,L_OT&lot){
 			}
 		}while(ok);
 	if(t.term.empty()){
-		PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"UnknownOperator",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>Неизвестный оператор или неожиданный конец файла в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		lot.clear();
 		}
 }
@@ -1217,14 +1343,14 @@ void Assemble::outLOT(L_OT&lot){
 }
 
 
-
+//проверить сочитание скобок
 bool Assemble::isCorectSkobki(L_OT&lot){
 	string lifo;
 	int pos=0,er=0;
-	const char *final;
+	char *final;
 	L_OT::iterator it=lot.begin();
 	for(;it!=lot.end();++it)if(it->nfunc==4){
-		char c=(it->term[0]);
+		char c=it->term[0];
 		final=it->c;
 		if(c=='{' || c=='(' || c=='['){
 			lifo+=c;
@@ -1259,22 +1385,46 @@ bool Assemble::isCorectSkobki(L_OT&lot){
 			}
 		}
 	if(er==1){
-		PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ '";
-		PHTML+=it->term+"' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,it->c));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"Bracket",
+			it->term.c_str(),
+			SCANER::toString(SCANER::findNumberStringLine(F.text,it->c))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>Лишняя скобка '";
+			PHTML+=it->term+"' в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,it->c));
+			PHTML+="</font><br/>\n";
+			}
 		}
 	if(er==2){
-		PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ '";
-		PHTML+=it->term.c_str();
-		PHTML+="' пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,it->c));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"CloseBracket",
+			it->term.c_str(),
+			SCANER::toString(SCANER::findNumberStringLine(F.text,it->c))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>Закрытая скобка '";
+			PHTML+=it->term.c_str();
+			PHTML+="' не соответствует открытой в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,it->c));
+			PHTML+="</font><br/>\n";
+			}
 		}
 	if(lifo.size()){
-		PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ \"";
-		PHTML+=lifo+"\" пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: "+
-			SCANER::toString(SCANER::findNumberStringLine(F.text,final))+"</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NeedCloseBracket",
+			lifo.c_str(),
+			SCANER::toString(SCANER::findNumberStringLine(F.text,final))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>Нехватает закрытых скобок к открытым \"";
+			PHTML+=lifo+"\" в строке: "+
+				SCANER::toString(SCANER::findNumberStringLine(F.text,final))+"</font><br/>\n";
+			}
 		er=3;
 		}
 	return !er;
@@ -1306,9 +1456,9 @@ void Assemble::adaptationString(L_OT&lot){
 
 
 
-Algorithm* Assemble::Razbor(const char*&s,int n){//1-; 2-,; 0-(_,) 3-as 4-[]
+Algorithm* Assemble::Razbor(char*&s,int n){//1-; 2-,; 0-(_,) 3-as 4-[]
 	L_OT lot;
-	const char*s2=s;
+	char*s2=s;
 	Readterms(s,lot);
 	if(lot.empty()){
 		s=s2;
@@ -1341,7 +1491,7 @@ Algorithm* Assemble::Razbor(const char*&s,int n){//1-; 2-,; 0-(_,) 3-as 4-[]
 		A=NULL;
 		/*
 		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
+		PHTML+="Ошибка в выражении в строке: ";
 		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,ok?pos->c:s2));
 		PHTML+="</font><br/>\n";
 		*/
@@ -1359,7 +1509,7 @@ Algorithm* Assemble::Razbor(const char*&s,int n){//1-; 2-,; 0-(_,) 3-as 4-[]
 
 
 //<label:12>
-Label* Assemble::getLabel(const char*&s){
+Label* Assemble::getLabel(char*&s){
 	SCANER::noProbel(s);
 	if(*s!='<')return NULL;
 	++s;
@@ -1372,11 +1522,19 @@ Label* Assemble::getLabel(const char*&s){
 	SCANER::noProbel(s);
 	if(*s=='>'){++s;++n;}
 	if(n<3){
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+=SCANER::replaceSpecSumbolHTML(". пїЅпїЅпїЅпїЅпїЅпїЅ: <label:10>");
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"LabelError",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Нарушен синтаксис метки в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+=SCANER::replaceSpecSumbolHTML(". Пример: <label:10>");
+			PHTML+="</font><br/>\n";
+			}
 		return NULL;
 		}
 	Label*X=new(Label);
@@ -1387,7 +1545,7 @@ Label* Assemble::getLabel(const char*&s){
 
 
 
-void Assemble::probaVarReadSub(const char*&s,Type&tip,string&str){
+void Assemble::probaVarReadSub(char*&s,Type&tip,string&str){
 	while(*s=='*'){
 		++tip.n;
 		++s;
@@ -1406,8 +1564,8 @@ void Assemble::probaVarReadSub(const char*&s,Type&tip,string&str){
 
 //const nfls k(1,1),*t;
 //int m[][15]={{1},{0}};
-int Assemble::probaVarRead(const char*&s,L_AL&nabor){
-	const char*s2=s;
+int Assemble::probaVarRead(char*&s,L_AL&nabor){
+	char*s2=s;
 	string str;
 	V_S S;
 	Type tip;
@@ -1442,7 +1600,8 @@ int Assemble::probaVarRead(const char*&s,L_AL&nabor){
 		s=s2;
 		return 0;
 		}
-	for(int i=0;i<n;++i){
+	int i;
+	for(i=0;i<n;++i){
 		if(i)tip.name+=" ";
 		tip.name+=S[i];
 		}
@@ -1475,7 +1634,7 @@ int Assemble::probaVarRead(const char*&s,L_AL&nabor){
 			SCANER::noProbel(s);
 			}
 		if(*s=='='){
-			const char*ss=s;
+			char*ss=s;
 			++s;
 			cvar->isInit=1;
 			cvar->Init=Razbor(s,2);
@@ -1529,14 +1688,23 @@ int Assemble::probaVarRead(const char*&s,L_AL&nabor){
 		break;
 		}
 	if(er){
-		//if(er==4){s=s2;return 0;}
-		PHTML+="<font class='red'>";
-		if(er==1)PHTML+="пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		if(er==2)PHTML+="пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ '=' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		if(er==3){PHTML+="пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ";PHTML+=SCANER::toString(narg);PHTML+=" пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";}
-		if(er==4)PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ',' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		const char* EE[] = {"E1","E2","E3","E4"};
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			EE[er-1],
+			SCANER::toString(narg),
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			//if(er==4){s=s2;return 0;}
+			PHTML+="<font class='red'>";
+			if(er==1)PHTML+="Нет имени переменной после описания типа ее в строке: ";
+			if(er==2)PHTML+="Нет инициализации переменной после '=' в строке: ";
+			if(er==3){PHTML+="Нет аргумента ";PHTML+=SCANER::toString(narg);PHTML+=" в конструкторе, в строке: ";}
+			if(er==4)PHTML+="Нужен разделитель ',' в описании переменных в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		return 2;
 		}
 	nabor.push_back(cvar);
@@ -1546,11 +1714,11 @@ int Assemble::probaVarRead(const char*&s,L_AL&nabor){
 
 
 
-SpecSumbol* Assemble::getSpecSumbol(const char*&s,int&er){
-	const char*s2=s;
+SpecSumbol* Assemble::getSpecSumbol(char*&s,int&er){
+	char*s2=s;
 	string slovo=SCANER::readName(s);
-	int i=0;
-	for(;SpecSumbol::m[i];++i){
+	int i;
+	for(i=0;SpecSumbol::m[i];++i){
 		//s=s2;if(SCANER::scanSlovo(SpecSumbol::m[i],s))break;
 		if(slovo==SpecSumbol::m[i])break;
 		}
@@ -1558,10 +1726,18 @@ SpecSumbol* Assemble::getSpecSumbol(const char*&s,int&er){
 	SCANER::noProbel(s);
 	if(*s==';'){
 		if(i==1){
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'delete' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"NeedArgDel",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Нужен аргумент после 'delete' в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			s=s2;
 			er=10;
 			return NULL;
@@ -1572,18 +1748,34 @@ SpecSumbol* Assemble::getSpecSumbol(const char*&s,int&er){
 		return S;
 		}
 	if(i>5){
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅпїЅпїЅпїЅпїЅ '";PHTML+=SpecSumbol::m[i];PHTML+="' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NeedPsetko",
+			SpecSumbol::m[i],
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Отсутствует ';' после '";PHTML+=SpecSumbol::m[i];PHTML+="' в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		return NULL;
 		}
 	Algorithm*X=Razbor(s,1);
 	if(!X){
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ '";PHTML+=SpecSumbol::m[i];PHTML+="' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NeedArg",
+			SpecSumbol::m[i],
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Нужен аргумент после '";PHTML+=SpecSumbol::m[i];PHTML+="' в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		s=s2;
 		er=10;
 		return NULL;
@@ -1593,11 +1785,19 @@ SpecSumbol* Assemble::getSpecSumbol(const char*&s,int&er){
 		if(B)if(B->type==3){if(!int(SCANER::getNumber(B->text,10)))B=NULL;}else B=NULL;
 		if(!B){
 			delete X;
-			PHTML+="<font class='red'>Spec sumbil <b>";
-			PHTML+=SpecSumbol::m[i];
-			PHTML+="</b> mast be const int, no zero, value in string: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"MastBeNumber",
+				SpecSumbol::m[i],
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>Spec sumbil <b>";
+				PHTML+=SpecSumbol::m[i];
+				PHTML+="</b> mast be const int, no zero, value in string: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			s=s2;
 			er=10;
 			return NULL;
@@ -1612,8 +1812,8 @@ SpecSumbol* Assemble::getSpecSumbol(const char*&s,int&er){
 
 
 
-IF* Assemble::getIF(const char*&s,int&er){ // if
-	const char*s2=s;
+IF* Assemble::getIF(char*&s,int&er){ // if
+	char*s2=s;
 	if(!SCANER::scanSlovo("if",s))return NULL;
 	SCANER::noProbel(s);
 	if(*s!='('){
@@ -1625,20 +1825,36 @@ IF* Assemble::getIF(const char*&s,int&er){ // if
 	iif->X=Razbor(s,0);
 	if(*s!=')'){
 		delete iif;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ')' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ if() пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NeedBracketInIF",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Требуетса скобка ')' после условия в блоке if() в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		er=1;
 		return NULL;
 		}
 	++s;
 	if(!iif->X){
 		delete iif;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ if() пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s2));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NeedCondition",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s2))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Требуетса условие в блоке if() в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s2));
+			PHTML+="</font><br/>\n";
+			}
 		er=1;
 		return NULL;
 		}
@@ -1673,7 +1889,7 @@ IF* Assemble::getIF(const char*&s,int&er){ // if
 
 
 
-WHILE* Assemble::getWHILE(const char*&s,int&er){
+WHILE* Assemble::getWHILE(char*&s,int&er){
 	WHILE*W=NULL;
 	if(SCANER::scanSlovo("repeat",s)){
 		SCANER::noProbel(s);
@@ -1683,10 +1899,18 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 			W->X=Razbor(s,0);
 			SCANER::noProbel(s);
 			if(*s!=')'){
-				PHTML+="<font class='red'>";
-				PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ')' пїЅ пїЅпїЅпїЅпїЅпїЅ 'repeat()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-				PHTML+="</font><br/>\n";
+				bool isOK = Main->GoErrorMessage(
+					PHTML,
+					"NeedInRepeat",
+					"",
+					SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+					);
+				if(!isOK){
+					PHTML+="<font class='red'>";
+					PHTML+="Требуетса скобка ')' в блоке 'repeat()', в строке: ";
+					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+					PHTML+="</font><br/>\n";
+					}
 				er=1;
 				return W;
 				}
@@ -1697,10 +1921,18 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		W->A=getNabor(s,er);
 		if(!W->A)if(*s!=';'){
 			er=1;
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'repeat', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"NeedPsetkoR",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Требуетса ';' после блока 'repeat', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			}
 		return W;
 		}
@@ -1709,10 +1941,18 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		SCANER::noProbel(s);
 		if(*s!='('){
 			er=1;
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ '(' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'while', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"NeedBracketW",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Требуетса '(' после блоке 'while', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			return NULL;
 			}
 		++s;
@@ -1723,11 +1963,19 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		if(*s!=')')er=1;
 		if(!W->X)er=2;
 		if(er){
-			PHTML+="<font class='red'>";
-			if(er==1)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ')' пїЅ пїЅпїЅпїЅпїЅпїЅ 'while()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			if(er==2)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ 'while(?)', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				((er==1)?"NeedCBracketW":"NeedConditionW"),
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				if(er==1)PHTML+="Требуетса ')' в блоке 'while()', в строке: ";
+				if(er==2)PHTML+="Требуетса условие в блоке 'while(?)', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			return W;
 			}
 		++s;
@@ -1738,7 +1986,7 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		}
 	if(SCANER::scanSlovo("do",s)){
 		if(*s!=' ' && *s!='	' && *s!='{' && *s!='\n'){s-=2;return W;}
-		const char*s2=s;
+		char*s2=s;
 		SCANER::noProbel(s);
 		W=new(WHILE);
 		W->n=2;
@@ -1752,12 +2000,21 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		SCANER::noProbel(s);
 		if(*s!='(')if(!er)er=3;
 		if(er){
-			PHTML+="<font class='red'>";
-			if(er==1)PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'do', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			if(er==2)PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'while' пїЅ пїЅпїЅпїЅпїЅпїЅ 'do{}while()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			if(er==3)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ '(' пїЅ пїЅпїЅпїЅпїЅпїЅ 'do{}while()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			const char* mer[] = {"NE01","NW02","NB03"};
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				mer[er-1],
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				if(er==1)PHTML+="Нужен отступ после 'do', в строке: ";
+				if(er==2)PHTML+="Нужно слово 'while' в блоке 'do{}while()', в строке: ";
+				if(er==3)PHTML+="Требуетса '(' в блоке 'do{}while()', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			return W;
 			}
 		++s;
@@ -1769,12 +2026,21 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 		SCANER::noProbel(s);
 		if(*s!=';')if(!er)er=3;
 		if(er){
-			PHTML+="<font class='red'>";
-			if(er==1)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ')' пїЅ пїЅпїЅпїЅпїЅпїЅ 'do{}while()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			if(er==2)PHTML+="пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ 'do{}while(?)', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			if(er==3)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ 'do{}while()', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			const char* mer[] = {"NB04","NC05","NP0W"};
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				mer[er-1],
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				if(er==1)PHTML+="Требуетса ')' в блоке 'do{}while()', в строке: ";
+				if(er==2)PHTML+="Нужно условие в блоке 'do{}while(?)', в строке: ";
+				if(er==3)PHTML+="Требуетса ';' после блока 'do{}while()', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			}
 		++s;
 		}
@@ -1784,7 +2050,7 @@ WHILE* Assemble::getWHILE(const char*&s,int&er){
 
 
 
-Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
+Algorithm* Assemble::getFOR(char*&s,int&er,Sequence*S){
 	if(!SCANER::scanSlovo("for",s))return NULL;
 	if(*s!=' ' && *s!='	' && *s!='\n' && *s!='('){
 		s-=3;
@@ -1793,18 +2059,26 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 	SCANER::noProbel(s);
 	if(*s!='('){
 		er=1;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ '(' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ '";
-		PHTML+="for";
-		PHTML+="', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NB06",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Требуетса '(' после блока '";
+			PHTML+="for";
+			PHTML+="', в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		return NULL;
 		}
 	++s;
 	SCANER::noProbel(s);
 	Sequence*S2=S;
-	const char*ss=s;
+	char*ss=s;
 	SCANER::noProbel(s);
 	Algorithm*X=NULL;
 	if(SCANER::scanSlovo("in",s)){
@@ -1828,10 +2102,18 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 			}
 		if(t!=1){
 			er=1;
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ 'for(<b>?</b>;;);', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"EI07",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Нарушен блок инициализации для 'for(<b>?</b>;;);', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			return NULL;
 			}
 		}else ++s;
@@ -1841,10 +2123,18 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 		FF->X=Razbor(s,1);
 		if(!FF->X){
 			er=2;
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ 'for(;<b>?</b>;);', пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"EC08",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Нарушен блок условия для 'for(;<b>?</b>;);', в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			delete FF;
 			return NULL;
 			}
@@ -1861,11 +2151,19 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 			S3->nabor.push_back(U);
 			}
 		if(er){
-			PHTML+="<font class='red'>";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ 'for(;;<b>?</b>);'. ";
-			PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"EL09",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>";
+				PHTML+="Нарушен список пост операций для 'for(;;<b>?</b>);'. ";
+				PHTML+="Список должен разделятса комами или быть пустым. Проблема в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+				PHTML+="</font><br/>\n";
+				}
 			delete FF;
 			delete S3;
 			return NULL;
@@ -1881,10 +2179,18 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 		
 	if(*s!=')'){
 		er=1;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ ')' пїЅпїЅпїЅ 'for(;;<b>)</b>;' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NB10",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Требуетса скобка ')' для 'for(;;<b>)</b>;' в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		delete FF;
 		return NULL;
 		}
@@ -1898,8 +2204,8 @@ Algorithm* Assemble::getFOR(const char*&s,int&er,Sequence*S){
 
 
 
-Algorithm* Assemble::getONE(const char*&s,int&er,Sequence*S){
-	const char*s2=s;
+Algorithm* Assemble::getONE(char*&s,int&er,Sequence*S){
+	char*s2=s;
 	Algorithm*X;
 	Sequence*sub;
 	sub=getNabor(s,er);
@@ -1914,9 +2220,21 @@ Algorithm* Assemble::getONE(const char*&s,int&er,Sequence*S){
 		return X;
 		}
 	if(sub){
-		if(sub->nabor.empty())delete sub;
-			else return sub;
-		return NULL;
+		if(sub->nabor.empty()){
+			delete sub;
+			return new AlgoSet();
+			}
+		if(sub->nabor.size()==1){
+			AlgoSet*AS=dynamic_cast<AlgoSet*>(*sub->nabor.begin());
+			if(AS){
+				AlgoSet*A = new AlgoSet();
+				A->nabor.push_back(AS);
+				sub->nabor.clear();
+				delete sub;
+				return A;
+				}
+			}
+		return sub;
 		}else s=s2;
 	X=getLabel(s);
 	if(X)return X; else s=s2;
@@ -1945,8 +2263,8 @@ Algorithm* Assemble::getONE(const char*&s,int&er,Sequence*S){
 
 
 
-Sequence* Assemble::getNabor(const char*&s,int&er){ //{}
-	const char*s2=s;
+Sequence* Assemble::getNabor(char*&s,int&er){ //{}
+	char*s2=s;
 	SCANER::noProbel(s);
 	if(*s!='{')return NULL;
 	++s;
@@ -1956,6 +2274,10 @@ Sequence* Assemble::getNabor(const char*&s,int&er){ //{}
 	while(1){
 		SCANER::noProbel(s);
 		if(!(*s!='}' && *s))break;
+		if(*s==','){
+			er=1;
+			break;
+			}
 		if(*s==';'){
 			++s;
 			continue;
@@ -1972,10 +2294,18 @@ Sequence* Assemble::getNabor(const char*&s,int&er){ //{}
 	if(*s=='}')++s; else{
 		delete S;
 		S=NULL;
-		PHTML+="<font class='red'>";
-		PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ. пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"EX11",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,s))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>";
+			PHTML+="Неправильно организованы операторные скобки. Проблема в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,s));
+			PHTML+="</font><br/>\n";
+			}
 		er=1;
 		}
 	return S;
@@ -1985,11 +2315,11 @@ Sequence* Assemble::getNabor(const char*&s,int&er){ //{}
 
 
 Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
-	//1 пїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1
-	//1 пїЅпїЅпїЅпїЅпїЅпїЅ  2
-	//2 пїЅпїЅпїЅпїЅпїЅпїЅ  2
-	//2 пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ 1
-	Algorithm*S=NULL;//пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ
+	//1 префикс 1
+	//1 строка  2
+	//2 суфикс  2
+	//2 оператор 1
+	Algorithm*S=NULL;//указатель на скобки
 	Algorithm*R=NULL,**X;
 	X=&R;
 	int n=1,i;
@@ -2005,10 +2335,8 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				continue;
 				}
 			if(pos->nfunc==6){
-				Prefix*P=new(Prefix);
-				P->n=11;
-				P->X=pos->A->copy();
-				*X=P;
+				*X=pos->A;
+				pos->A=NULL;
 				X=NULL;
 				n=2;
 				continue;
@@ -2029,23 +2357,33 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 					}
 				if(pos->term!=")")if(!er)er=4;
 				if(er){
-					PHTML+="<font class='red'>";
-					if(er<=4){
-						const char*m[]={"<",">","(",")"};
-						PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ '";
-						PHTML+=SCANER::replaceSpecSumbolHTML(m[er-1]);
-						PHTML+=SCANER::replaceSpecSumbolHTML("' пїЅ пїЅпїЅпїЅпїЅпїЅ 'dynamic_cast<>()' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ");
+					const char*m[]={"<",">","(",")"};
+					const char*pm = "";
+					if(er<=4)pm = m[er-1];
+					bool isOK = Main->GoErrorMessage(
+						PHTML,
+						((er<=4)?"NB12":((er==5)?"ET13":"NA13")),
+						pm,
+						SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+						);
+					if(!isOK){
+						PHTML+="<font class='red'>";
+						if(er<=4){
+							PHTML+="Требуетса скобка '";
+							PHTML+=SCANER::replaceSpecSumbolHTML(m[er-1]);
+							PHTML+=SCANER::replaceSpecSumbolHTML("' в блоке 'dynamic_cast<>()' в строке: ");
+							}
+						if(er==5){
+							PHTML+="Неверно заданый тип в блоке ";
+							PHTML+=SCANER::replaceSpecSumbolHTML("'dynamic_cast<?>()' в строке: ");
+							}
+						if(er==6){
+							PHTML+="Требуетса выражение в блоке ";
+							PHTML+=SCANER::replaceSpecSumbolHTML("'dynamic_cast<>(?)' в строке: ");
+							}
+						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+						PHTML+="</font><br/>\n";
 						}
-					if(er==5){
-						PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ ";
-						PHTML+=SCANER::replaceSpecSumbolHTML("'dynamic_cast<?>()' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ");
-						}
-					if(er==6){
-						PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ ";
-						PHTML+=SCANER::replaceSpecSumbolHTML("'dynamic_cast<>(?)' пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ");
-						}
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
 					if(x)delete x;
 					if(A)delete A;
 					delete R;
@@ -2071,7 +2409,7 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				n=2;
 				continue;
 				}
-			if(pos->nfunc==4)if(pos->term=="("){ // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
+			if(pos->nfunc==4)if(pos->term=="("){ // преобразование типов
 				L_OT::iterator pos2=pos;
 				++pos;
 				Type*x=Type::getType(pos);
@@ -2080,7 +2418,12 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				if(ok){
 					L_OT::iterator pos3=pos;
 					++pos3;
-					ok=(pos3->term=="(" || pos3->term=="{" || pos3->nfunc<4 || (pos3->nfunc==4 && pos3->term=="#"));
+					ok = (
+						pos3->term=="(" || 
+						pos3->term=="{" || 
+						pos3->nfunc<4 || 
+						((pos3->nfunc==4 || pos3->nfunc==6) && pos3->term=="#")
+						);
 					}
 				if(ok){
 					Cast*h=new(Cast);
@@ -2111,16 +2454,32 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				X=NULL;
 				if(!I){
 					if(pos->term==","){
-						PHTML+="<font class='red'>пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-						PHTML+="</font><br/>\n";
+						bool isOK = Main->GoErrorMessage(
+							PHTML,
+							"EK14",
+							"",
+							SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+							);
+						if(!isOK){
+							PHTML+="<font class='red'>Не должно быть ком в скобках в строке: ";
+							PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+							PHTML+="</font><br/>\n";
+							}
 						break;
 						}
 					bool krugli2=pos->term==")";
 					if(!krugli || !krugli2){
-						PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-						PHTML+="</font><br/>\n";
+						bool isOK = Main->GoErrorMessage(
+							PHTML,
+							"EB15",
+							"",
+							SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+							);
+						if(!isOK){
+							PHTML+="<font class='red'>Скобки должны быть круглые в строке: ";
+							PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+							PHTML+="</font><br/>\n";
+							}
 						break;
 						}
 					}
@@ -2166,13 +2525,22 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 						if(pos->term==";" || pos->term==",")++pos; else {nok=1;break;}
 						}
 					if(nok){
-						PHTML+="<font class='red'>";
-						if(nok==1)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ';' пїЅпїЅпїЅ ',' пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						if(nok==2)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						if(nok==3)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						if(nok==4)PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ ':' пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-						PHTML+="</font><br/>\n";
+						const char* mer[] = {"NP16","EP17","NN18","NP19"};
+						bool isOK = Main->GoErrorMessage(
+							PHTML,
+							mer[nok-1],
+							"",
+							SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+							);
+						if(!isOK){
+							PHTML+="<font class='red'>";
+							if(nok==1)PHTML+="Отсутствует разделитель ';' или ',' внутри композиции в строке: ";
+							if(nok==2)PHTML+="Некорректно задан параметр внутри композиции в строке: ";
+							if(nok==3)PHTML+="Требуетса имя поля внутри композиции в строке: ";
+							if(nok==4)PHTML+="Пропущен разделитель ':' между именем поля и значением его в строке: ";
+							PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+							PHTML+="</font><br/>\n";
+							}
 						break;
 						}
 					}
@@ -2180,9 +2548,17 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				n=2;
 				continue;
 				}
-			PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-			PHTML+="</font><br/>\n";
+			bool isOK = Main->GoErrorMessage(
+				PHTML,
+				"NA20",
+				"",
+				SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+				);
+			if(!isOK){
+				PHTML+="<font class='red'>Отсутствует аргумент в строке: ";
+				PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+				PHTML+="</font><br/>\n";
+				}
 			delete R;
 			R=NULL;
 			break;
@@ -2212,17 +2588,33 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 					if(A)cf->params.push_back(A); else {nok=2;break;}
 					}
 				if(nok==1){
-					PHTML+="<font class='red'>";
-					PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
+					bool isOK = Main->GoErrorMessage(
+						PHTML,
+						"EB21",
+						"",
+						SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+						);
+					if(!isOK){
+						PHTML+="<font class='red'>";
+						PHTML+="Параметры функции должны быть в круглых скобках разделены комой в строке: ";
+						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+						PHTML+="</font><br/>\n";
+						}
 					break;
 					}
 				if(nok==2){
-					PHTML+="<font class='red'>";
-					PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
+					bool isOK = Main->GoErrorMessage(
+						PHTML,
+						"NP22",
+						"",
+						SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+						);
+					if(!isOK){
+						PHTML+="<font class='red'>";
+						PHTML+="Параметр некорректный или отсутствует в строке: ";
+						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+						PHTML+="</font><br/>\n";
+						}
 					break;
 					}
 				continue;
@@ -2236,18 +2628,29 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 				am->P=Assemble::gather(lot,pos);
 				bool ok;
 				ok=pos->term==(i==3?"]":"}");
-				if(!ok){
-					PHTML+="<font class='red'>";
-					PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
-					break;
-					}
-				if(!am->P){
-					PHTML+="<font class='red'>";
-					PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
+				if(!ok || !am->P){
+					bool isOK = Main->GoErrorMessage(
+						PHTML,
+						((!ok)?"EB23":"EI24"),
+						"",
+						SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+						);
+					if(!isOK){
+						if(!ok){
+							PHTML+="<font class='red'>";
+							PHTML+="Несоответствие скобок при доступе к масиву в строке: ";
+							PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+							PHTML+="</font><br/>\n";
+							break;
+							}
+						if(!am->P){
+							PHTML+="<font class='red'>";
+							PHTML+="Некорректный индекс масива в строке: ";
+							PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+							PHTML+="</font><br/>\n";
+							break;
+							}
+						}
 					break;
 					}
 				continue;
@@ -2270,10 +2673,18 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 					B3->V=NULL;
 					}
 				if(!B3->V){
-					PHTML+="<font class='red'>";
-					PHTML+="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ (_?_:_) пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ: ";
-					PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-					PHTML+="</font><br/>\n";
+					bool isOK = Main->GoErrorMessage(
+						PHTML,
+						"ET25",
+						"",
+						SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+						);
+					if(!isOK){
+						PHTML+="<font class='red'>";
+						PHTML+="Некорректо задан тренарный оператор (_?_:_) в строке: ";
+						PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+						PHTML+="</font><br/>\n";
+						}
 					delete R;
 					R=NULL;
 					break;
@@ -2315,9 +2726,17 @@ Algorithm* Assemble::gather(L_OT&lot,L_OT::iterator&pos){
 		delete R;
 		R=NULL;
 		--pos;
-		PHTML+="<font class='red'>пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅ: ";
-		PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
-		PHTML+="</font><br/>\n";
+		bool isOK = Main->GoErrorMessage(
+			PHTML,
+			"NA26",
+			"",
+			SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c))
+			);
+		if(!isOK){
+			PHTML+="<font class='red'>Отсутствует ожидаемый аргумент в строке: ";
+			PHTML+=SCANER::toString(SCANER::findNumberStringLine(F.text,pos->c));
+			PHTML+="</font><br/>\n";
+			}
 		}
 	return R;
 }

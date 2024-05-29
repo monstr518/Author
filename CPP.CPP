@@ -6,6 +6,8 @@ const char* CallFunc::m[]={
 	"help",
 	"trace",
 	"tracex",
+	"tracec",
+	"MessageBeep",
 	"system",
 	"Sleep",
 	"implode",
@@ -14,7 +16,6 @@ const char* CallFunc::m[]={
 	"count",
 	"outAllMemory",
 	"outAllMTree",
-	"in_array",
 	"rozpad",
 	"define",
 	"include",
@@ -27,12 +28,12 @@ const char* CallFunc::m[]={
 	"getThisFunctionName",
 	"getThisFileName",
 	"amputace",
-	//"LoadDLL",
-	//"unLoadDLL",
-	//"SendDLL",
-	//"Recv1DLL",
-	//"RecvDLL",
-	//"getNamesAllDll",
+
+	"LoadDLL",
+	"UnLoadDLL",
+	"RunDLL",
+	"getNamesAllDll",
+
 	"echo",
 	"rand",
 	"typeof",
@@ -60,27 +61,83 @@ const char* CallFunc::m[]={
 	"eraseInclude",
 	"Spirit",
 	"Math",
+	"sizeof",
+	"Randomize",
+
+	"readFile",
+	"saveFile",
+	"addInFile",
+	"existFile",
+	"existDir",
+	"createDir",
+	"deleteFile",
+	"deleteDir",
+	"FindFiles",
+	"renameFile",
+	"renameDir",
+
+	"Ajax",
+	"JSON",
+	"Server",
 	0
 };
 
 
 bool CallFunc::isCFunction(string s){
-	for(int i=0;m[i];++i)if(s==m[i])return 1;
+	int i;
+	for(i=0;m[i];++i)if(s==m[i])return 1;
 	return 0;
 }
 
 
 //--------------------------------------------------------------------------------------------------
-void CallFunc::trace(MAIN*M,V_CVARIANT&VCV,bool ln){
-	for(int i=0;i<VCV.size();++i){
-		VCV[i].TransformType("string");
-		//char*str=new(char[VCV[i].DATA.ps->size()+1]);
-		//CharToOem(VCV[i].DATA.ps->c_str(),str);
-		//cout<<str;
-		cout<<*VCV[i].DATA.ps;
-		//delete[] str;
+void CallFunc::trace(MAIN*M, V_CVARIANT&VCV, char sposob){ // sposob: 2-color 1-ln 0-...
+	EnterCriticalSection(&M->CriticalSection1);
+	int i;
+	if(sposob==2){
+		int size = VCV.size();
+		if(size){
+			int color = 15;
+			bool isSetOneColor = true;
+			CVARIANT *CharColors = NULL;
+			if(size>=2)CharColors = &VCV[1];
+			VCV[0].TransformType("string");
+			size = VCV[0].DATA.ps->size();
+			char*str = new(char[size+1]);
+			CharToOem(VCV[0].DATA.ps->c_str(),str);
+			if(CharColors){
+				isSetOneColor = CharColors->isType("int");
+				if(isSetOneColor)color = CharColors->DATA.intVal;
+				if(!CharColors->isType("vector"))CharColors = NULL;
+				}
+			int sizec = 0;
+			if(CharColors)sizec = CharColors->DATA.vectorVal->size();
+			i = 0;
+			HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
+			for(;i<size;++i){
+				if(!isSetOneColor){
+					if(i<sizec){
+						CVARIANT *CC = *(CharColors->DATA.vectorVal->begin()+i);
+						if(CC->isType("int"))color = CC->DATA.intVal;
+						}else color = 15;
+					}
+				SetConsoleTextAttribute(hConsole, color);
+				cout<<str[i]<<flush;
+				}
+			delete[] str;
+			SetConsoleTextAttribute(hConsole, 7);
+			}
+		}else{
+		for(i=0;i<VCV.size();++i){
+			VCV[i].TransformType("string");
+			char*str = new(char[VCV[i].DATA.ps->size()+1]);
+			CharToOem(VCV[i].DATA.ps->c_str(),str);
+			cout<<str;
+			delete[] str;
+			}
 		}
-	if(ln)cout<<endl;else cout<<flush;
+	if(sposob)cout<<endl; else cout<<flush;
+	LeaveCriticalSection(&M->CriticalSection1);
 }
 
 
@@ -88,7 +145,7 @@ void CallFunc::Sleeep(V_CVARIANT&VCV,bool isSleep){
 	if(!VCV.size())return;
 	if(isSleep){
 		VCV[0].TransformType("int");
-		usleep(VCV[0].DATA.intVal);
+		Sleep(VCV[0].DATA.intVal);
 		return;
 		}
 	VCV[0].TransformType("string");
@@ -104,10 +161,11 @@ void CallFunc::implode(V_CVARIANT&VCV,CVARIANT*&V){
 		A->TransformType("string");
 		B->TransformType("vector");
 		string str;
-		for(int i=0;i<B->DATA.vectorVal->size();++i){
+		int i;
+		for(i=0;i<B->DATA.vectorVal->size();++i){
 			if(i)str+=*A->DATA.ps;
-			(*B->DATA.vectorVal)[i].TransformType("string");
-			str+=*(*B->DATA.vectorVal)[i].DATA.ps;
+			(*B->DATA.vectorVal)[i]->TransformType("string");
+			str+=*(*B->DATA.vectorVal)[i]->DATA.ps;
 			}
 		V=new(CVARIANT);
 		V->avtoSet("string");
@@ -133,11 +191,15 @@ void CallFunc::split(V_CVARIANT&VCV,CVARIANT*&V){
 			u=b->find(a->c_str());
 			if(u<0)break;
 			*S.DATA.ps=b->substr(0,u);
-			V->DATA.vectorVal->push_back(S);
+			CVARIANT*X = new CVARIANT();
+			*X = S;
+			V->DATA.vectorVal->push_back(X);
 			*b=b->substr(u+a->length());
 			}
 		*S.DATA.ps=*b;
-		V->DATA.vectorVal->push_back(S);
+		CVARIANT*X = new CVARIANT();
+		*X = S;
+		V->DATA.vectorVal->push_back(X);
 		}
 }
 
@@ -165,14 +227,13 @@ void CallFunc::outAllMemory(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 		F=F->Prev;
 		}
 	string str;
-	for(int i=CELS.size()-1;i>=0;--i){
-		CVARIANT&A=CELS[i],S;
-		M_CVARIANT*MC=A.DATA.mapVal;
-		S.avtoSet("string");
-		*S.DATA.ps="this-f";
+	int i;
+	for(i=CELS.size()-1;i>=0;--i){
+		CVARIANT&A=CELS[i];
+		M_SV*MC=A.DATA.mapVal;
 		static const char*line="------------------------------------------------------------\n";
 		static const char*line2="============================================================\n";
-		if(MC->find(S)!=MC->end())str+=line2;else str+=line;
+		if(MC->find("this-f")!=MC->end())str+=line2;else str+=line;
 		str+=M->FragmentOneToString(MC);
 		}
 	V=new(CVARIANT);
@@ -181,30 +242,18 @@ void CallFunc::outAllMemory(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 }
 
 
-void CallFunc::in_array(V_CVARIANT&VCV,CVARIANT*&V){
-	if(VCV.size()>1){
-		CVARIANT*A,*B;
-		A=&VCV[0];
-		B=&VCV[1];
-		B->TransformType("vector");
-		bool t=find(B->DATA.vectorVal->begin(),B->DATA.vectorVal->end(),*A)!=B->DATA.vectorVal->end();
-		V=new(CVARIANT);
-		V->avtoSet("bool");
-		V->DATA.boolVal=t;
-		}
-}
-
 
 void CallFunc::rozpad(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(VCV.size()>0){
 		VCV[0].TransformType("vector");
 		if(!VCV[0].DATA.vectorVal->size())return;
 		Laver*L=M->tableLavers[Pset->Laver];
-		for(int i=0;i<VCV[0].DATA.vectorVal->size();++i){
+		int i;
+		for(i=0;i<VCV[0].DATA.vectorVal->size();++i){
 			I*U=new I(*Pset);
 			L->IS.push_back(U);
 			CVARIANT*CV=new(CVARIANT);
-			*CV=(*VCV[0].DATA.vectorVal)[i];
+			*CV=*(*VCV[0].DATA.vectorVal)[i];
 			U->sub->Bloki[this]=TRAVERS(CV,1);
 			}
 		V=new(CVARIANT);
@@ -268,7 +317,8 @@ void CallFunc::uninclude(V_CVARIANT&VCV,MAIN*M){
 
 void CallFunc::isset(V_CVARIANT&VCV,CVARIANT*&V){
 	bool b=1;
-	for(int i=0;i<VCV.size();++i){
+	int i;
+	for(i=0;i<VCV.size();++i){
 		if(VCV[i].isType("void"))b=0;
 		}
 	V=new(CVARIANT);
@@ -303,7 +353,7 @@ void CallFunc::eval(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 				Sequence*S=NULL;
 					{
 					Assemble A(error,M,"");
-					const char*c=s.c_str();
+					char*c=const_cast<char*>(s.c_str());
 					S=A.getNabor(c,er);
 					}
 				if(er){
@@ -376,6 +426,8 @@ void CallFunc::eval(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 }
 
 
+
+
 void CallFunc::getFunction(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(VCV.size()>0){
 		VCV[0].TransformType("string");
@@ -395,7 +447,14 @@ void CallFunc::getFunction(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 		CFunction P(F);
 		P.isOriginal=1;
 		(*V->DATA.functionVal)=P;
+		return;
 		}
+	Function*F = Pset->sub->ActivF;
+	V=new(CVARIANT);
+	V->avtoSet("function");
+	CFunction P(F);
+	P.isOriginal = 1;
+	(*V->DATA.functionVal)=P;
 }
 
 
@@ -416,16 +475,18 @@ void CallFunc::getstring(CVARIANT*&V){
 
 
 void CallFunc::reserve(V_CVARIANT&VCV,CVARIANT*&V){
+	int n=0;
 	if(VCV.size()>0){
 		VCV[0].TransformType("int");
-		int n=VCV[0].DATA.intVal;
-		CVARIANT H,U;
-		H.avtoSet("vector");
-		U.avtoSet("int");
-		U.DATA.intVal=0;
-		for(;n>0;--n)H.DATA.vectorVal->push_back(U);
-		V=new(CVARIANT);
-		*V=H;
+		n=VCV[0].DATA.intVal;
+		}
+	CVARIANT U;
+	V = new(CVARIANT);
+	V->avtoSet("vector");
+	if(VCV.size()>1)U=VCV[1];
+	for(;n>0;--n){
+		CVARIANT*W = U.copy();
+		V->DATA.vectorVal->push_back(W);
 		}
 }
 
@@ -480,17 +541,24 @@ void CallFunc::define(I*Pset,V_CVARIANT&VCV,MAIN*M,CVARIANT*&V){
 		}
 	Pset->numberDefine=x;
 	if(List){
-		V_CVARIANT::iterator it=List->DATA.vectorVal->begin();
+		V_pCVARIANT::iterator it=List->DATA.vectorVal->begin();
 		for(;it!=List->DATA.vectorVal->end();++it)
-			if(it->isType("string"))Pset->DefineNames.push_back(*it->DATA.ps);
+			if((*it)->isType("string"))Pset->DefineNames.push_back(*(*it)->DATA.ps);
 		}
 }
 
 
 
 void CallFunc::LoadDLL(V_CVARIANT&VCV,MAIN*M){
-	if(VCV.size()>0){
+	if(VCV.size()>=2){
 		VCV[0].TransformType("string");
+		VCV[1].TransformType("string");
+		string *NameDLL, *path;
+		bool isNeed;
+		NameDLL = VCV[0].DATA.ps;
+		path = VCV[1].DATA.ps;
+		isNeed = (M->CDLL.dlls.find(*NameDLL) == M->CDLL.dlls.end());
+		if(isNeed)M->CDLL.Load(*NameDLL, *path);
 		}
 }
 
@@ -498,66 +566,56 @@ void CallFunc::LoadDLL(V_CVARIANT&VCV,MAIN*M){
 void CallFunc::unLoadDLL(V_CVARIANT&VCV,MAIN*M){
 	if(VCV.size()>0){
 		VCV[0].TransformType("string");
+		M->CDLL.unLoad(*VCV[0].DATA.ps);
 		}
 }
 
 
-void CallFunc::SendDLL(V_CVARIANT&VCV,MAIN*M){
-	if(VCV.size()>1){
+void CallFunc::RunDLL(V_CVARIANT&VCV, CVARIANT*&V, MAIN*M){
+	if(VCV.size()>=2){
+		string *NameDLL, Data;
 		VCV[0].TransformType("string");
-		VCV[1].TransformType("string");
-
-		}
-}
-
-
-void CallFunc::RecvDLL(string name,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
-	/*
-	if(VCV.size()>0){
-		VCV[0].TransformType("string");
-		V=new(CVARIANT);
-		if(name=="Recv1DLL"){
-			V->avtoSet("string");
-			*V->DATA.ps=M->CDLL.Recv(*VCV[0].DATA.ps);
+		NameDLL = VCV[0].DATA.ps;
+		int format = 1;
+		bool isToString = false;
+		::JSON objJSON;
+		objJSON.getONE(&VCV[1], isToString);
+		Data = objJSON.toString(format);
+		Data = M->CDLL.Run(*NameDLL, Data);
+		const char*str = Data.c_str();
+		bool isOK = objJSON.parse(str);
+		if(isOK){
+			V = objJSON.toCVARIANT();
 			return;
 			}
-		CVARIANT S;
-		S.avtoSet("string");
-		name=M->CDLL.Recv(*VCV[0].DATA.ps);
-		int n=0,i=0;
-		sscanf(name.c_str(),"%d",&n);
-		V->avtoSet("vector");
-		for(;i<n;++i){
-			*S.DATA.ps=M->CDLL.Recv(*VCV[0].DATA.ps);
-			V->DATA.vectorVal->push_back(S);
-			}
+		V = new(CVARIANT);
+		V->avtoSet("string");
+		*V->DATA.ps = Data;
 		}
-		*/
 }
+
+
 
 
 void CallFunc::getNamesAllDll(CVARIANT*&V,MAIN*M){
-	/*
 	CVARIANT A;
-	A.avtoSet("string");
-	*A.DATA.ps="WAY";
-	A=(*M->GlobalSpace.Map.DATA.mapVal)[A];
-	string t=*A.DATA.ps+"\\SYS\\DLLS\\*.dll";
+	A = (*M->GlobalSpace.Map.DATA.mapVal)["WAY"];
+	string path = *A.DATA.ps+"\\SYS\\DLLS\\*.dll";
 	WIN32_FIND_DATA FindFileData;
 	HANDLE hFind;
-	hFind = FindFirstFile(t.c_str(),&FindFileData);
+	hFind = FindFirstFile(path.c_str(),&FindFileData);
 	if(hFind == INVALID_HANDLE_VALUE)return;
 	V=new(CVARIANT);
 	V->avtoSet("vector");
-	*A.DATA.ps=FindFileData.cFileName;
-	V->DATA.vectorVal->push_back(A);
+	*A.DATA.ps = FindFileData.cFileName;
+	V->DATA.vectorVal->push_back(A.copy());
 	while (FindNextFile(hFind,&FindFileData)){
 		*A.DATA.ps=FindFileData.cFileName;
-		V->DATA.vectorVal->push_back(A);
+		V->DATA.vectorVal->push_back(A.copy());
 		}
 	FindClose(hFind);
-	*/
 }
+
 
 
 void CallFunc::echo(V_CVARIANT&VCV,MAIN*M){
@@ -576,7 +634,7 @@ void CallFunc::rand(V_CVARIANT&VCV,CVARIANT*&V){
 		double x;
 		bool isP=0;
 		if(VCV[0].isType("float")){x=VCV[0].DATA.fltVal;isP=1;}
-		if(VCV[0].isType("double")){x=VCV[0].DATA.dblVal;isP=1;}
+		if(VCV[0].isType("double")){x=*VCV[0].DATA.dblVal;isP=1;}
 		if(isP && x<=1){
 			double y=(double)(::rand()%10000)/10000;
 			V->avtoSet("bool");
@@ -588,9 +646,9 @@ void CallFunc::rand(V_CVARIANT&VCV,CVARIANT*&V){
 			double sum=0;
 			int i=0;
 			for(;i<VCV[0].DATA.vectorVal->size();++i){
-				CVARIANT*X=&(*VCV[0].DATA.vectorVal)[i];
+				CVARIANT*X=(*VCV[0].DATA.vectorVal)[i];
 				X->TransformType("double");
-				x=X->DATA.dblVal;
+				x = *X->DATA.dblVal;
 				if(x<0)x=0;
 				fragments.push_back(x);
 				sum+=x;
@@ -611,7 +669,7 @@ void CallFunc::rand(V_CVARIANT&VCV,CVARIANT*&V){
 }
 
 
-void CallFunc::typeofV(V_CVARIANT&VCV,CVARIANT*&V){
+void CallFunc::typeof(V_CVARIANT&VCV,CVARIANT*&V){
 	if(VCV.size()>0){
 		V=new(CVARIANT);
 		V->avtoSet("string");
@@ -734,15 +792,24 @@ void CallFunc::getValuesInLaver(I*Pset,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 		for(nProcess=0;nProcess<L->adaptationMap.size();++nProcess){
 			I*me=L->IS[L->adaptationMap[nProcess]];//,*Prev;
 			if(me->stop){
-				V->DATA.vectorVal->push_back(XV);
+				CVARIANT*W = new CVARIANT();
+				*W = XV;
+				V->DATA.vectorVal->push_back(W);
 				continue;
 				}
 			//Prev=Pset;
 			Pset=me;
 			CVARIANT*X=NULL;
 			int pos;
-			if(Base::findVar(Pset,M,X,*VCV[1].DATA.ps,pos))V->DATA.vectorVal->push_back(*X);
-				else V->DATA.vectorVal->push_back(XV);
+			if(Base::findVar(Pset,M,X,*VCV[1].DATA.ps,pos)){
+				CVARIANT*W = new CVARIANT();
+				*W = *X;
+				V->DATA.vectorVal->push_back(W);
+				}else {
+				CVARIANT*W = new CVARIANT();
+				*W = XV;
+				V->DATA.vectorVal->push_back(W);
+				}
 			//Pset=Prev;
 			}
 		}
@@ -779,17 +846,19 @@ void CallFunc::getListLaver(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 			if(!me->stop)break;
 			}
 		FRAGMENT*H=L->IS[L->adaptationMap[nProcess]]->Fundament;
-		CVARIANT K;
-		K.avtoSet("string");
-		*K.DATA.ps="this-f";
 		V=new(CVARIANT);
 		V->avtoSet("vector");
 		while(H){
-			for(int i=H->Memorys.size()-1;i>=0;--i){
-				M_CVARIANT*map=H->Memorys[i]->DATA.mapVal;
-				M_CVARIANT::iterator it=map->begin();
-				for(;it!=map->end();++it)if(it->first==K)H=NULL;else 
-					V->DATA.vectorVal->push_back(it->first);
+			int i;
+			for(i=H->Memorys.size()-1;i>=0;--i){
+				M_SV*map=H->Memorys[i]->DATA.mapVal;
+				M_SV::iterator it=map->begin();
+				for(;it!=map->end();++it)if(it->first=="this-f")H=NULL;else {
+					CVARIANT *S = new CVARIANT();
+					S->avtoSet("string");
+					*S->DATA.ps=it->first;
+					V->DATA.vectorVal->push_back(S);
+					}
 				if(!H)break;
 				}
 			if(!H)break;
@@ -818,39 +887,22 @@ void CallFunc::setPrioritetProcess(I*Pset,V_CVARIANT&VCV,MAIN*M){
 }
 
 
-/*
-void gettimeofday(struct timeval *tv){
-	FILETIME ft;
-	unsigned __int64 tmpres = 0;
-	static int tzflag;
-	if (NULL != tv){
-		GetSystemTimeAsFileTime(&ft);
-		tmpres |= ft.dwHighDateTime;
-		tmpres <<= 32;
-		tmpres |= ft.dwLowDateTime;
 
-		tmpres -= DELTA_EPOCH_IN_MICROSECS;
-		tmpres /= 10; 
-		tv->tv_sec = (long)(tmpres / 1000000UL);
-		tv->tv_usec = (long)(tmpres % 1000000UL);
-		}
-}
-*/
+
 
 void CallFunc::getTime(CVARIANT*&V){
-	struct timeval tv;
-	gettimeofday(&tv,NULL);
-	int tt=time(NULL);
-	V=new(CVARIANT);
+	V = new(CVARIANT);
 	V->avtoSet("double");
-	V->DATA.dblVal=(double)tt+tv.tv_usec/(1000000.0);
+	*V->DATA.dblVal = UPServac::gettimeofday();
 }
+
+
 
 
 void CallFunc::timeFormat(V_CVARIANT&VCV,CVARIANT*&V){
 	if(VCV.size()>0){
 		VCV[0].TransformType("double");
-		double tx=VCV[0].DATA.dblVal;
+		double tx = *VCV[0].DATA.dblVal;
 		VCV[0].TransformType("int");
 		int n=VCV[0].DATA.intVal,p;
 		tx-=n;
@@ -895,26 +947,26 @@ void CallFunc::PROGRAM(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(VCV.size()>0){
 		if(VCV[0].isType("map")){
 			string type,condition,body,eelse;
-			V_CVARIANT*VBody=NULL,*VElse=NULL;
+			V_pCVARIANT*VBody=NULL,*VElse=NULL;
 			Algorithm*Condition=NULL,*Body=NULL,*Else=NULL;
-			M_CVARIANT*table=VCV[0].DATA.mapVal;
-			CVARIANT K,*Va;
-			K.avtoSet("string");
+			M_SV*table=VCV[0].DATA.mapVal;
+			CVARIANT *Va;
+			string K;
+			K="type";
 			Va=NULL;
-			*K.DATA.ps="type";
 			if(table->find(K)!=table->end())Va=&(*table)[K];
 			if(Va)if(Va->isType("string"))type=*Va->DATA.ps;
 			Va=NULL;
-			*K.DATA.ps="condition";
+			K="condition";
 			if(table->find(K)!=table->end())Va=&(*table)[K];
 			if(Va){
 				if(Va->isType("string"))condition=*Va->DATA.ps;
 				if(Va->isType("program"))Condition=Va->DATA.programVal;
 				}
 			Va=NULL;
-			*K.DATA.ps="body";
+			K="body";
 			if(table->find(K)!=table->end())Va=&(*table)[K];else{
-				*K.DATA.ps="then";
+				K="then";
 				if(table->find(K)!=table->end())Va=&(*table)[K];
 				}
 			if(Va){
@@ -923,7 +975,7 @@ void CallFunc::PROGRAM(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 				if(Va->isType("vector"))VBody=Va->DATA.vectorVal;
 				}
 			Va=NULL;
-			*K.DATA.ps="else";
+			K="else";
 			if(table->find(K)!=table->end())Va=&(*table)[K];
 			if(Va){
 				if(Va->isType("string"))eelse=*Va->DATA.ps;
@@ -947,8 +999,9 @@ void CallFunc::PROGRAM(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 				}
 			if(!Body && VBody){
 				Sequence*SS=new Sequence();
-				for(int i=0;i<VBody->size();++i){
-					CVARIANT*P=&(*VBody)[i];
+				int i;
+				for(i=0;i<VBody->size();++i){
+					CVARIANT*P=(*VBody)[i];
 					if(P->isType("program"))SS->nabor.push_back(P->DATA.programVal->copy());
 					if(P->isType("string")){
 						Algorithm*A=Assemble::getComand(M,*P->DATA.ps);
@@ -964,8 +1017,9 @@ void CallFunc::PROGRAM(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 				}
 			if(!Else && VElse){
 				Sequence*SS=new Sequence();
-				for(int i=0;i<VBody->size();++i){
-					CVARIANT*P=&(*VBody)[i];
+				int i;
+				for(i=0;i<VBody->size();++i){
+					CVARIANT*P=(*VBody)[i];
 					if(P->isType("program"))SS->nabor.push_back(P->DATA.programVal->copy());
 					if(P->isType("string")){
 						Algorithm*A=Assemble::getComand(M,*P->DATA.ps);
@@ -1013,7 +1067,7 @@ void CallFunc::PROGRAM(V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 			Sequence*S=NULL;
 				{
 				Assemble A(error,M,"");
-				const char*c=(s.c_str());
+				char*c=const_cast<char*>(s.c_str());
 				S=A.getNabor(c,er);
 				}
 			if(er){
@@ -1047,10 +1101,10 @@ void CallFunc::ControlOFF(I*Pset,MAIN*M,CVARIANT*&V){
 		}
 	if(!FR)return;
 	CVARIANT*X=*FR->Memorys.rbegin();
-	CVARIANT S,E;
-	S.avtoSet("string");
+	CVARIANT E;
+	string S;
 	E.avtoSet("int");
-	*S.DATA.ps="stopoff*";
+	S="stopoff*";
 	V=new(CVARIANT);
 	V->avtoSet("bool");
 	if(X->DATA.mapVal->find(S)==X->DATA.mapVal->end()){
@@ -1069,9 +1123,8 @@ void CallFunc::ControlOFF(I*Pset,MAIN*M,CVARIANT*&V){
 void CallFunc::ClearPsetOFF(I*Pset,MAIN*M){
 	if(Pset->Fundament->Memorys.empty())return;
 	CVARIANT*X=*Pset->Fundament->Memorys.rbegin();
-	CVARIANT S;
-	S.avtoSet("string");
-	*S.DATA.ps="stopoff*";
+	string S;
+	S="stopoff*";
 	if(X->DATA.mapVal->find(S)==X->DATA.mapVal->end())return;
 	X->DATA.mapVal->erase(S);
 }
@@ -1080,12 +1133,12 @@ void CallFunc::ClearPsetOFF(I*Pset,MAIN*M){
 void CallFunc::getAllModules(MAIN*M,CVARIANT*&V){
 	V=new(CVARIANT);
 	V->avtoSet("vector");
-	CVARIANT S;
-	S.avtoSet("string");
 	M_iFile::iterator it=M->Files.begin();
 	for(;it!=M->Files.end();++it){
 		string s=it->second->way+"\\"+it->second->name;
-		*S.DATA.ps=s;
+		CVARIANT *S = new CVARIANT();
+		S->avtoSet("string");
+		*S->DATA.ps=s;
 		V->DATA.vectorVal->push_back(S);
 		}
 }
@@ -1098,9 +1151,8 @@ void CallFunc::getAllModuleFunctions(V_CVARIANT&VCV,MAIN*M,CVARIANT*&V){
 		if(!f)return;
 		V=new(CVARIANT);
 		V->avtoSet("vector");
-		CVARIANT S;
-		S.avtoSet("string");
-		for(int i=0;i<f->functions.size();++i){
+		int i;
+		for(i=0;i<f->functions.size();++i){
 			Function*fun=f->functions[i];
 			string full=fun->name;
 			CLASS*C=fun->Space;
@@ -1108,7 +1160,9 @@ void CallFunc::getAllModuleFunctions(V_CVARIANT&VCV,MAIN*M,CVARIANT*&V){
 				full=C->name+"::"+full;
 				C=C->Space;
 				}
-			*S.DATA.ps=full;
+			CVARIANT *S = new CVARIANT();
+			S->avtoSet("string");
+			*S->DATA.ps=full;
 			V->DATA.vectorVal->push_back(S);
 			}
 		}
@@ -1132,22 +1186,23 @@ void CallFunc::runFunction(I*Pset,V_CVARIANT&VCV,MAIN*M,CVARIANT*&V){
 		Pset->posicse.push_back(Pset->sub);
 		Pset->sub->Return=this;
 		Pset->sub->pos=fun->sxema->HeadEnd->down[0];
-		CVARIANT K,NF;
-		K.avtoSet("string");
+		CVARIANT NF;
+		string K;
 		NF.avtoSet("string");
 		CVARIANT*CEL=new(CVARIANT);
 		CEL->avtoSet("map");
-		*K.DATA.ps="this-f";
+		K="this-f";
 		*NF.DATA.ps="f:"+fun->name;
 		(*CEL->DATA.mapVal)[K]=NF;
-		V_CVARIANT H;
+		V_pCVARIANT H;
 		if(VCV.size()>2){
 			VCV[2].TransformType("vector");
 			H=*VCV[2].DATA.vectorVal;
 			}
-		for(int i=0;i<fun->names.size()&&i<H.size();++i){
-			*K.DATA.ps=fun->names[i];
-			(*CEL->DATA.mapVal)[K]=H[i];
+		int i;
+		for(i=0;i<fun->names.size()&&i<H.size();++i){
+			K=fun->names[i];
+			(*CEL->DATA.mapVal)[K]=*H[i];
 			}
 		Pset->Fundament->Memorys.push_back(CEL);
 		}
@@ -1169,16 +1224,18 @@ void CallFunc::issystemf(V_CVARIANT&VCV,CVARIANT*&V){
 	if(VCV.size()>0){
 		VCV[0].TransformType("string");
 		bool x=0;
-		for(int i=0;m[i];++i)if(*VCV[0].DATA.ps==m[i]){x=1;break;}
+		int i;
+		for(i=0;m[i];++i)if(*VCV[0].DATA.ps==m[i]){x=1;break;}
 		V->avtoSet("bool");
 		V->DATA.boolVal=x;
 		return;
 		}
 	V->avtoSet("vector");
-	CVARIANT S;
-	S.avtoSet("string");
-	for(int i=0;m[i];++i){
-		*S.DATA.ps=m[i];
+	int i;
+	for(i=0;m[i];++i){
+		CVARIANT *S = new CVARIANT();
+		S->avtoSet("string");
+		*S->DATA.ps=m[i];
 		V->DATA.vectorVal->push_back(S);
 		}
 }
@@ -1207,8 +1264,8 @@ void CallFunc::Spirit(I*Pset,V_CVARIANT&VCV,MAIN*M){
 		kill=0;
 		if(VCV[0].isType("string")){
 			Function*f=M->getFunction(Pset,*VCV[0].DATA.ps);
-			CVARIANT K,NF,*U;
-			K.avtoSet("string");
+			CVARIANT NF,*U;
+			string K;
 			NF.avtoSet("string");
 			U=new(CVARIANT);
 			U->avtoSet("bool");
@@ -1227,11 +1284,12 @@ void CallFunc::Spirit(I*Pset,V_CVARIANT&VCV,MAIN*M){
 				CVARIANT*CEL;
 				CEL=new(CVARIANT);
 				CEL->avtoSet("map");
-				*K.DATA.ps="this-f";
+				K="this-f";
 				*NF.DATA.ps="f:"+f->getPsetWay()+*VCV[0].DATA.ps;
 				(*CEL->DATA.mapVal)[K]=NF;
-				for(int i=0;i<f->names.size() && i+1<VCV.size();++i){
-					*K.DATA.ps=f->names[i];
+				int i;
+				for(i=0;i<f->names.size() && i+1<VCV.size();++i){
+					K=f->names[i];
 					(*CEL->DATA.mapVal)[K]=VCV[i+1];
 					}
 				Pset->Fundament->Memorys.push_back(CEL);
@@ -1264,36 +1322,36 @@ void CallFunc::Match(V_CVARIANT&VCV,MAIN*M,CVARIANT*&V){
 	string comand=*VCV[0].DATA.ps;
 	V=new(CVARIANT);
 	V->avtoSet("double");
-	V->DATA.dblVal=0;
+	*V->DATA.dblVal = 0;
 	if(VCV.size()==1){
-		if(comand=="pi" || comand=="PI")V->DATA.dblVal=3.1415926535897932384626433;
-		if(comand=="e" || comand=="E")V->DATA.dblVal=2.7182818284590452353602874;
+		if(comand=="pi" || comand=="PI")*V->DATA.dblVal = 3.1415926535897932384626433;
+		if(comand=="e" || comand=="E")*V->DATA.dblVal = 2.7182818284590452353602874;
 		return;
 		}
 	double a;
 	VCV[1].TransformType("double");
-	a=VCV[1].DATA.dblVal;
+	a = *VCV[1].DATA.dblVal;
 	if(VCV.size()>=3){
 		double b;
 		VCV[2].TransformType("double");
-		b=VCV[2].DATA.dblVal;
-		if(comand=="pow" || comand=="Pow")V->DATA.dblVal=pow(a,b);
-		if(comand=="fmod" || comand=="mod")V->DATA.dblVal=fmod(a,b);
+		b = *VCV[2].DATA.dblVal;
+		if(comand=="pow" || comand=="Pow")*V->DATA.dblVal = pow(a,b);
+		if(comand=="fmod" || comand=="mod")*V->DATA.dblVal = fmod(a,b);
 		return;
 		}
-	if(comand=="abs" || comand=="fabs")V->DATA.dblVal=fabs(a);
-	if(comand=="cos")V->DATA.dblVal=cos(a);
-	if(comand=="sin")V->DATA.dblVal=sin(a);
-	if(comand=="tan")V->DATA.dblVal=tan(a);
-	if(comand=="acos")V->DATA.dblVal=acos(a);
-	if(comand=="asin")V->DATA.dblVal=asin(a);
-	if(comand=="atan")V->DATA.dblVal=atan(a);
-	if(comand=="sqrt")V->DATA.dblVal=sqrt(a);
-	if(comand=="ceil")V->DATA.dblVal=ceil(a);
-	if(comand=="exp")V->DATA.dblVal=exp(a);
-	if(comand=="floor")V->DATA.dblVal=floor(a);
-	if(comand=="ln")V->DATA.dblVal=log(a);
-	if(comand=="log10")V->DATA.dblVal=log10(a);
+	if(comand=="abs" || comand=="fabs")*V->DATA.dblVal = fabs(a);
+	if(comand=="cos")*V->DATA.dblVal = cos(a);
+	if(comand=="sin")*V->DATA.dblVal = sin(a);
+	if(comand=="tan")*V->DATA.dblVal = tan(a);
+	if(comand=="acos")*V->DATA.dblVal = acos(a);
+	if(comand=="asin")*V->DATA.dblVal = asin(a);
+	if(comand=="atan")*V->DATA.dblVal = atan(a);
+	if(comand=="sqrt")*V->DATA.dblVal = sqrt(a);
+	if(comand=="ceil")*V->DATA.dblVal = ceil(a);
+	if(comand=="exp")*V->DATA.dblVal = exp(a);
+	if(comand=="floor")*V->DATA.dblVal = floor(a);
+	if(comand=="ln")*V->DATA.dblVal = log(a);
+	if(comand=="log10")*V->DATA.dblVal = log10(a);
 }
 
 
@@ -1304,32 +1362,39 @@ void CallFunc::Help(V_CVARIANT&VCV,CVARIANT*&V){
 	V=new(CVARIANT);
 	if(VCV.size()<1){
 		V->avtoSet("vector");
-		CVARIANT X;
-		X.avtoSet("string");
-		*X.DATA.ps="avtor";
+		CVARIANT *X;
+		X = new CVARIANT();
+		X->avtoSet("string");
+		*X->DATA.ps="author";
 		V->DATA.vectorVal->push_back(X);
-		*X.DATA.ps="ver";
+		X = new CVARIANT();
+		X->avtoSet("string");
+		*X->DATA.ps="ver";
 		V->DATA.vectorVal->push_back(X);
-		*X.DATA.ps="functions";
+		X = new CVARIANT();
+		X->avtoSet("string");
+		*X->DATA.ps="functions";
 		V->DATA.vectorVal->push_back(X);
 		return;
 		}
 	VCV[0].TransformType("string");
 	string s=*VCV[0].DATA.ps;
-	if(s=="avtor"){
+	if(s=="author"){
 		V->avtoSet("string");
-		*V->DATA.ps="пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ";
+		*V->DATA.ps="Довгополый Вадим";
 		}
 	if(s=="ver"){
 		V->avtoSet("string");
-		*V->DATA.ps="2015";
+		*V->DATA.ps="2019";
 		}
 	if(s=="functions"){
 		V->avtoSet("vector");
-		CVARIANT X;
-		X.avtoSet("string");
-		for(int i=0;m[i];++i){
-			*X.DATA.ps=m[i];
+		CVARIANT *X;
+		int i;
+		for(i=0;m[i];++i){
+			X = new CVARIANT();
+			X->avtoSet("string");
+			*X->DATA.ps=m[i];
 			V->DATA.vectorVal->push_back(X);
 			}
 		}
@@ -1338,19 +1403,341 @@ void CallFunc::Help(V_CVARIANT&VCV,CVARIANT*&V){
 
 
 
+void CallFunc::FileAccess(string&name,V_CVARIANT&VCV,CVARIANT*&V){
+	if(name=="existFile")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		FILE *file = fopen(fileName, "r");
+		bool ok = (file!=NULL);
+		if(ok)fclose(file);
+		V=new(CVARIANT);
+		V->avtoSet("bool");
+		V->DATA.boolVal = ok;
+		return;
+		}
+	if(name=="existDir")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		DWORD attribs = ::GetFileAttributesA(fileName);
+		DWORD INVALID_FILE_ATTRIBUTES = ((DWORD)-1);
+		bool ok = true;
+		if(attribs == INVALID_FILE_ATTRIBUTES)ok = false;
+		if(ok)ok=((attribs & FILE_ATTRIBUTE_DIRECTORY)!=0);
+		V=new(CVARIANT);
+		V->avtoSet("bool");
+		V->DATA.boolVal = ok;
+		return;
+		}
+	if(name=="readFile")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		::ifstream t;
+		int length;
+		t.open(fileName);			// open input file
+		t.seekg(0, ios::end);    // go to the end
+		length = t.tellg();           // report location (this is the length)
+		t.seekg(0, ios::beg);    // go back to the beginning
+		char*buffer = new char[length+1];    // allocate memory for a buffer of appropriate dimension
+		::memset(buffer,0,length+1);
+		t.read(buffer, length);       // read the whole file into the buffer
+		t.close();                    // close file handle
+		V=new(CVARIANT);
+		V->avtoSet("string");
+		*V->DATA.ps = buffer;
+		delete[] buffer;
+		return;
+		}
+	if(name=="saveFile")if(VCV.size()>=2){
+		VCV[0].TransformType("string");
+		VCV[1].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		::ofstream out(fileName);
+		out << VCV[1].DATA.ps->c_str();
+		out.close();
+		return;
+		}
+	if(name=="createDir")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char *DirName = VCV[0].DATA.ps->c_str();
+		mkdir(DirName);
+		return;
+		}
+	if(name=="addInFile")if(VCV.size()>=2){
+		VCV[0].TransformType("string");
+		VCV[1].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		::ofstream out(fileName, ios::app);
+		out << VCV[1].DATA.ps->c_str();
+		out.close();
+		return;
+		}
+	if(name=="FindFiles")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		int attr = 3, p;
+		if(VCV.size()>=2){
+			if(VCV[1].isType("int")){
+				p = VCV[1].DATA.intVal;
+				if(p==1 || p==2)attr = p;
+				}else{
+				VCV[1].TransformType("string");
+				const string *s = VCV[1].DATA.ps;
+				if(*s=="File" || *s=="file" || *s=="Files" || *s=="files")attr=1;
+				if(*s=="Dir" || *s=="dir" || *s=="Dirs" || *s=="dirs")attr=2;
+				}
+			}
+		V = new(CVARIANT);
+		V->avtoSet("vector");
+		WIN32_FIND_DATA FindFileData;
+		HANDLE hf;
+		hf = FindFirstFile(fileName,&FindFileData);
+		if(hf != INVALID_HANDLE_VALUE){
+			do{
+				p = (FindFileData.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY)?2:1;
+				if(attr&p){
+					string ps = FindFileData.cFileName;
+					if(ps!="." && ps!=".."){
+						CVARIANT *X = new CVARIANT();
+						X->avtoSet("string");
+						*X->DATA.ps = ps;
+						V->DATA.vectorVal->push_back(X);
+						}
+					}
+				}while(FindNextFile(hf,&FindFileData) != 0);
+			FindClose(hf);
+			}
+		return;
+		}
+	if(name=="deleteFile")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		remove(fileName);
+		return;
+		}
+	if(name=="deleteDir")if(VCV.size()>=1){
+		VCV[0].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		int result;
+        result = rmdir(fileName);
+		V = new(CVARIANT);
+		V->avtoSet("bool");
+		V->DATA.boolVal = (result == 0);//ok
+		return;
+		}
+	if(name=="renameFile" || name=="renameDir")if(VCV.size()>=2){
+		VCV[0].TransformType("string");
+		VCV[1].TransformType("string");
+		const char*fileName = VCV[0].DATA.ps->c_str();
+		const char*fileName2 = VCV[1].DATA.ps->c_str();
+		int result;
+		result = rename(fileName,fileName2);
+		V = new(CVARIANT);
+		V->avtoSet("bool");
+		V->DATA.boolVal = (result == 0);//ok
+		return;
+		}
+}
+
+
+
+
+void CallFunc::AJAX(V_CVARIANT&VCV,CVARIANT*&V){
+	if(VCV.size()!=1)return;
+	if(!VCV[0].isType("map"))return;
+	M_SV*table = VCV[0].DATA.mapVal;
+	CVARIANT *Value;
+	string X;
+
+	X="method";
+	string method = "GET";
+	if(table->find(X) != table->end()){
+		Value = &(*table)[X];
+		Value->TransformType("string");
+		method = *Value->DATA.ps;
+		}
+
+	X="url";
+	if(table->find(X) == table->end())return;
+	string host_name;
+	Value = &(*table)[X];
+	Value->TransformType("string");
+	host_name = *Value->DATA.ps;
+
+	X="port";
+	int port = 80;
+	if(table->find(X) != table->end()){
+		Value = &(*table)[X];
+		Value->TransformType("int");
+		port = Value->DATA.intVal;
+		}
+
+	string context;
+	X="context";
+	if(table->find(X) != table->end()){
+		Value = &(*table)[X];
+		Value->TransformType("string");
+		context = *Value->DATA.ps;
+		} else {
+		X="text";
+		if(table->find(X) != table->end()){
+			Value = &(*table)[X];
+			Value->TransformType("string");
+			context = *Value->DATA.ps;
+			}
+		}
+
+	string headers;
+	X="headers";
+	if(table->find(X) != table->end()){
+		Value = &(*table)[X];
+		Value->TransformType("string");
+		headers = *Value->DATA.ps;
+		}
+
+	string text;
+	bool isOK = Ajax(host_name,port,method,headers,context,text);
+	V = new CVARIANT();
+	if(!isOK){
+		//printf("%s", text.c_str());
+		V->avtoSet("vector");
+		CVARIANT *S;
+		S = new CVARIANT();
+		S->avtoSet("string");
+		*S->DATA.ps = "Error:";
+		V->DATA.vectorVal->push_back(S);
+		S = new CVARIANT();
+		S->avtoSet("string");
+		*S->DATA.ps = text;
+		V->DATA.vectorVal->push_back(S);
+		return;
+		}
+
+	V->avtoSet("string");
+	*V->DATA.ps = text;
+	int pos = text.find("\r\n\r\n");
+	if(pos<0)return;
+	string body = text.substr(pos+4);
+	int posx = text.find("\r\n");
+	if(posx<0)return;
+	string fstr = text.substr(0,posx);
+	string heads = text.substr(posx+2,pos-(posx+2));
+	V->avtoSet("vector");
+	CVARIANT *S;
+	S = new CVARIANT();
+	S->avtoSet("string");
+	*S->DATA.ps = fstr;
+	V->DATA.vectorVal->push_back(S);
+	S = new CVARIANT();
+	S->avtoSet("string");
+	*S->DATA.ps = heads;
+	V->DATA.vectorVal->push_back(S);
+	S = new CVARIANT();
+	S->avtoSet("string");
+	*S->DATA.ps = body;
+	V->DATA.vectorVal->push_back(S);
+}
+
+
+
+void CallFunc::JSON(V_CVARIANT&VCV,CVARIANT*&V){
+	if(VCV.size()<2)return;
+	VCV[0].TransformType("string");
+	if(*VCV[0].DATA.ps=="parse"){
+		VCV[1].TransformType("string");
+		string*textJSON = VCV[1].DATA.ps;
+		::JSON objJSON;
+		const char*str = textJSON->c_str();
+		objJSON.parse(str);
+		V=objJSON.toCVARIANT();
+		}
+	if(*VCV[0].DATA.ps=="stringify"){
+		int format = 1;
+		bool isToString = false;
+		if(VCV.size()>=3){
+			VCV[2].TransformType("int");
+			format = VCV[2].DATA.intVal;
+			isToString = (format>1);
+			if(format)format = 1;
+			}
+		::JSON objJSON;
+		objJSON.getONE(&VCV[1],isToString);
+		V = new CVARIANT;
+		V->avtoSet("string");
+		*V->DATA.ps = objJSON.toString(format);
+		}
+}
+
+
+
+
+void CallFunc::Server(MAIN*M,V_CVARIANT&VCV,CVARIANT*&V){
+	int sizeVCV = VCV.size();
+	if(sizeVCV<1)return;
+	VCV[0].TransformType("string");
+	string* ps = VCV[0].DATA.ps;
+	if(*ps=="Listen")if(sizeVCV>=2){
+		int port;
+		VCV[1].TransformType("int");
+		port = VCV[1].DATA.intVal;
+		if(M->p_Servac){
+			V = new CVARIANT();
+			V->avtoSet("string");
+			*V->DATA.ps = "NeedStopServer";
+			return;
+			}
+		M->p_Servac = new UPServac(port);
+		M->p_Servac->RunServer();
+		V = new CVARIANT();
+		V->avtoSet("string");
+		*V->DATA.ps = M->p_Servac->getDoclad();
+		return;
+		}
+	if(*ps=="Stop"){
+		delete M->p_Servac;
+		M->p_Servac = NULL;
+		return;
+		}
+	if(*ps=="getCountWaitUsers"){
+		int n = 0;
+		if(M->p_Servac)n = M->p_Servac->getCountWaitUsers();
+		V = new CVARIANT();
+		V->avtoSet("int");
+		V->DATA.intVal = n;
+		return;
+		}
+	if(*ps=="WaitUser"){
+		string message;
+		if(M->p_Servac){
+			M->p_Servac->WaitUser();
+			message = M->p_Servac->GetBuffer();
+			}else message = "NeedStartServer";
+		V = new CVARIANT();
+		V->avtoSet("string");
+		*V->DATA.ps = message;
+		return;
+		}
+	if(*ps=="SendAndClose")if(sizeVCV>=2){
+		VCV[1].TransformType("string");
+		const char* s = VCV[1].DATA.ps->c_str();
+		if(M->p_Servac)M->p_Servac->SendAndClose(s);
+		return;
+		}
+}
+
+
 
 
 //--------------------------------------------------------------------------------------------------
 void CallFunc::fc(I*Pset,string&name,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(name=="help")Help(VCV,V);
 	if(name=="trace" || name=="tracex")trace(M,VCV,name=="trace");
+	if(name=="tracec")trace(M,VCV,2);
 	if(name=="Sleep" || name=="system")Sleeep(VCV,name=="Sleep");
 	if(name=="implode")implode(VCV,V);
 	if(name=="split")split(VCV,V);
 	if(name=="count"||name=="size")size(VCV,V);
 	if(name=="outAllMemory")outAllMemory(Pset,VCV,V,M);
 	if(name=="outAllMTree")outAllMTree(Pset,V,M);
-	if(name=="in_array")in_array(VCV,V);
 	if(name=="rozpad")rozpad(Pset,VCV,V,M);
 	if(name=="define")define(Pset,VCV,M,V);
 	if(name=="include")include(VCV,V,M);
@@ -1361,16 +1748,15 @@ void CallFunc::fc(I*Pset,string&name,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(name=="getstring")getstring(V);
 	if(name=="reserve")reserve(VCV,V);
 	if(name=="getThisFunctionName")getThisFunctionName(Pset,V,M);
-	/*
+
 	if(name=="LoadDLL")LoadDLL(VCV,M);
-	if(name=="unLoadDLL")unLoadDLL(VCV,M);
-	if(name=="SendDLL")SendDLL(VCV,M);
-	if(name=="Recv1DLL" || name=="RecvDLL")RecvDLL(name,VCV,V,M);
+	if(name=="UnLoadDLL")unLoadDLL(VCV,M);
+	if(name=="RunDLL")RunDLL(VCV,V,M);
 	if(name=="getNamesAllDll")getNamesAllDll(V,M);
-	*/
+
 	if(name=="echo")echo(VCV,M);
 	if(name=="rand")rand(VCV,V);
-	if(name=="typeof")typeofV(VCV,V);
+	if(name=="typeof")typeof(VCV,V);
 	if(name=="getValueInLaver")getValueInLaver(Pset,VCV,V,M);
 	if(name=="setValueInLaver")setValueInLaver(Pset,VCV,M);
 	if(name=="getThisLaverNumber")getThis(Pset,V,M,0);
@@ -1396,6 +1782,58 @@ void CallFunc::fc(I*Pset,string&name,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M){
 	if(name=="insertInclude" || name=="eraseInclude")EIInclude(VCV,M,name=="insertInclude");
 	if(name=="Spirit")Spirit(Pset,VCV,M);
 	if(name=="Math")Match(VCV,M,V);
+	if(
+		name=="readFile" || name=="saveFile" || name=="addInFile" || 
+		name=="existFile" || name=="existDir" || 
+		name=="deleteFile" || name=="deleteDir" || name=="FindFiles" ||
+		name=="renameFile" || name=="renameDir" || name=="createDir"
+		)FileAccess(name,VCV,V);
+	if(name=="Ajax")AJAX(VCV,V);
+	if(name=="JSON")JSON(VCV,V);
+	if(name=="Server")Server(M,VCV,V);
+	if(name=="sizeof"){
+		int size = 0;
+		if(VCV.size())size = VCV[0].getSizeOf();
+		V = new CVARIANT();
+		V->avtoSet("int");
+		V->DATA.intVal = size;
+		return;
+		}
+	if(name=="Randomize"){
+		int code;
+		if(VCV.size()){
+			VCV[0].TransformType("int");
+			code = VCV[0].DATA.intVal;
+			}else{
+			code = UPServac::gettimeofday()*1111;
+			}
+		srand(code);
+		return;
+		}
+	if(name=="MessageBeep"){
+		int NubberBeep = 0;
+		int HZ, time = 0;
+		int si = VCV.size();
+		if(si){
+			VCV[0].TransformType("int");
+			HZ = VCV[0].DATA.intVal;
+			NubberBeep = HZ % 4;
+			if(si>=2)if(VCV[1].isType("int"))time = VCV[1].DATA.intVal;
+			}
+		if(time<10){
+			long n[] = {
+				MB_ICONASTERISK,
+				MB_ICONEXCLAMATION,
+				MB_ICONHAND,
+				MB_ICONQUESTION // none
+				};
+			MessageBeep(n[NubberBeep]);
+			return;
+			}
+		Beep(HZ, time);
+		return;
+		}
+	
 }
 
 
@@ -1426,17 +1864,21 @@ void CallFunc::mc(I*Pset,string&tt,string&name,V_CVARIANT&VCV,CVARIANT*&V,MAIN*M
 		thisVal=M->getUnLink(Pset,t,ok);
 		}
 	if(!thisVal)return;
-	if(thisVal->isType("interval"))interval(thisVal,name,V,VCV);
+	if(thisVal->isType("char"))forchar(thisVal,name,V,VCV);
+	if(thisVal->isType("interval"))forinterval(thisVal,name,V,VCV);
 	if(thisVal->isType("string"))forstring(thisVal,name,V,VCV);
+	if(thisVal->isType("pointer"))forpointer(Pset,thisVal,name,V,VCV,M);
 	if(thisVal->isType("vector"))forvector(thisVal,name,V,VCV);
 	if(thisVal->isType("set"))forset(thisVal,name,V,VCV);
 	if(thisVal->isType("map"))formap(thisVal,name,V,VCV);
 	if(thisVal->isType("function"))forfunction(Pset,thisVal,name,V,VCV,M);
 	if(thisVal->isType("program"))forprogram(thisVal,name,V,VCV);
-	if(thisVal->isType("graph"))forgraf(thisVal,name,V,VCV);
+	if(thisVal->isType("graph"))forgraf(thisVal,name,V,VCV,M);
 	if(thisVal->isType("digit"))fordigit(thisVal,name,V,VCV);
 	if(thisVal->isType("module"))formodule(thisVal,name,V,VCV,M);
 	if(kill){
+		Laver*L=M->tableLavers[Pset->Laver];
+		if(L->ExtraExit)return;
 		Pset->sub->Bloki.erase(A);
 		delete thisVal;
 		}

@@ -20,6 +20,8 @@
 
 
 
+
+
 #ifdef DEF_PCONS_CONTENT
 //--------------------------------------------------------------------------------------------------
 class BasisLine{
@@ -34,9 +36,10 @@ public:
 	BasisLine(int,char,const char*);
 	virtual ~BasisLine();
 	BasisLine(const BasisLine&);
-	virtual string toString() const =0;
-	virtual string toString2() const =0;
+	virtual string toString() const = 0;
+	virtual string toString2() const = 0;
 };
+
 
 
 class NetLine:public BasisLine{
@@ -48,6 +51,7 @@ public:
 	string toString() const;
 	string toString2() const;
 };
+
 
 
 class MarkerLine:public BasisLine{
@@ -83,7 +87,7 @@ public:
 	virtual ~UGraf();
 	
 	UGraf(const UGraf&);
-	int getUnits(S_I&);
+	int getUnits(S_I&) const;
 
 	void add(NetLine*);
 	void add(MarkerLine*);
@@ -91,8 +95,8 @@ public:
 	string toString() const;
 	string toString(string) const;
 
-	void findMarker(V_BL&vbl,int,char,string*,char,string*);
-	void findNet(V_BL&,int,char,string*,char,int);
+	void findMarker(V_BL&vbl,int,char,string*,char,string*) const;
+	void findNet(V_BL&,int,char,string*,char,int) const;
 	void findNetBlizko(V_NL&,int);
 	void deleteMarker(int,char,string*,char,string*);
 	void deleteNet(int,char,string*,char,int);
@@ -107,6 +111,9 @@ public:
 	bool operator > (const UGraf&);
 	operator string () const;
 	void import(const char*);
+	int getSizeOf() const;
+	CVARIANT* ExportData() const;
+	bool ImportData(CVARIANT*);
 
 };
 
